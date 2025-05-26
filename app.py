@@ -1,21 +1,22 @@
+import os
 from fastapi import FastAPI
-import sqlite3
+from sqlalchemy import create_engine, MetaData, Table, select
+from sqlalchemy.engine import Result
+
+DATABASE_URL = os.environ["DATABASE_URL"]
+engine = create_engine(DATABASE_URL)
+metadata = MetaData()
+metadata.reflect(bind=engine)
+horarios = metadata.tables["horarios"]
 
 app = FastAPI()
 
-@app.get("/")
-def home():
-    return {"ok": True, "message": "API de Disponibilidad"}
-
 @app.get("/disponibilidad")
 def disponibilidad(venue: str, fecha: str):
-    conn = sqlite3.connect("disponibilidad.db")
-    cur = conn.cursor()
-    cur.execute("SELECT venue, fecha, cancha, hora, link FROM horarios WHERE venue=? AND fecha=?", (venue, fecha))
-    rows = cur.fetchall()
-    conn.close()
-    result = [
-        {"venue": r[0], "fecha": r[1], "cancha": r[2], "hora": r[3], "link": r[4]}
-        for r in rows
-    ]
-    return result
+    with engine.connect() as conn:
+        query = select([horarios]).where(
+            (horarios.c.venue == venue) & (horarios.c.fecha == fecha)
+        )
+        result: Result = conn.execute(query)
+        rows = [dict(row) for row in result]
+    return rows
