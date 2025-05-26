@@ -1,3 +1,4 @@
+import os
 import time
 import datetime
 import nest_asyncio
@@ -5,7 +6,8 @@ import asyncio
 from playwright.async_api import async_playwright
 import pandas as pd
 from urllib.parse import urlparse, parse_qs
-import sqlite3
+import psycopg2
+from psycopg2.extras import execute_values
 
 nest_asyncio.apply()
 
@@ -16,12 +18,19 @@ VENUES = [
     "collaroy-tc",
 ]
 
-def crear_tabla_sqlite(db_path="disponibilidad.db"):
-    conn = sqlite3.connect(db_path)
+# 1. Conexión a Postgres
+def get_conn():
+    # Tomá el string de conexión de la variable de entorno o editá acá
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    return psycopg2.connect(DATABASE_URL)
+
+# 2. Crear tabla si no existe
+def crear_tabla_postgres():
+    conn = get_conn()
     cur = conn.cursor()
     cur.execute("""
         CREATE TABLE IF NOT EXISTS horarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             venue TEXT,
             fecha TEXT,
             cancha TEXT,
@@ -31,8 +40,10 @@ def crear_tabla_sqlite(db_path="disponibilidad.db"):
         )
     """)
     conn.commit()
+    cur.close()
     conn.close()
 
+# 3. Scraper
 async def extraer_disponibilidad(venue, fecha="20250528"):
     url = f"https://www.tennisvenues.com.au/booking/{venue}?date={fecha}"
     base = "https://www.tennisvenues.com.au"
@@ -47,7 +58,7 @@ async def extraer_disponibilidad(venue, fecha="20250528"):
         except Exception as e:
             print(f"❌ Error en {venue}-{fecha}: {e}")
             await browser.close()
-            return pd.DataFrame()  # Devolver vacío y continuar
+            return pd.DataFrame()  # Vacío
 
         enlaces = await page.query_selector_all("td.TimeCell.Available a")
         for a in enlaces:
@@ -71,25 +82,33 @@ async def extraer_disponibilidad(venue, fecha="20250528"):
     df = pd.DataFrame(resultados).drop_duplicates()
     return df
 
-def guardar_df_sqlite(df, db_path="disponibilidad.db"):
-    conn = sqlite3.connect(db_path)
-    cur = conn.cursor()
-    for venue in df["venue"].unique():
-        for fecha in df["fecha"].unique():
-            cur.execute("DELETE FROM horarios WHERE venue=? AND fecha=?", (venue, fecha))
-    for _, row in df.iterrows():
-        cur.execute("""
-            INSERT OR IGNORE INTO horarios (venue, fecha, cancha, hora, link)
-            VALUES (?, ?, ?, ?, ?)
-        """, (row.venue, row.fecha, row.cancha, row.hora, row.link))
-    conn.commit()
+# 4. Guardado en Postgres (Bulk)
+def guardar_df_postgres(df):
+    if df.empty:
+        return
+    conn = get_conn()
+    with conn:
+        with conn.cursor() as cur:
+            # Borrar todos los registros de ese venue/fecha
+            venues = df['venue'].unique()
+            fechas = df['fecha'].unique()
+            for venue in venues:
+                for fecha in fechas:
+                    cur.execute("DELETE FROM horarios WHERE venue=%s AND fecha=%s", (venue, fecha))
+            # Insertar todo el dataframe de una vez
+            rows = list(df[['venue', 'fecha', 'cancha', 'hora', 'link']].itertuples(index=False, name=None))
+            execute_values(
+                cur,
+                "INSERT INTO horarios (venue, fecha, cancha, hora, link) VALUES %s ON CONFLICT DO NOTHING",
+                rows
+            )
     conn.close()
 
-# ⏩ Scraping concurrente (por fecha)
-async def scrapear_concurrente(venues, fechas, db_path="disponibilidad.db", max_concurrent=4):
+# 5. Scraping concurrente
+async def scrapear_concurrente(venues, fechas, max_concurrent=4):
     from asyncio import Semaphore, create_task, gather
 
-    crear_tabla_sqlite(db_path)
+    crear_tabla_postgres()
     sem = Semaphore(max_concurrent)
 
     async def scrapear_venue_fecha(venue, fecha):
@@ -97,10 +116,10 @@ async def scrapear_concurrente(venues, fechas, db_path="disponibilidad.db", max_
             t0 = time.time()
             print(f"[INICIO] {venue} - {fecha} - {t0:.2f}")
             df = await extraer_disponibilidad(venue, fecha)
-            guardar_df_sqlite(df, db_path)
+            guardar_df_postgres(df)
             t1 = time.time()
             print(f"[FIN]    {venue} - {fecha} - {t1:.2f} (Duración: {t1-t0:.2f}s)")
-            await asyncio.sleep(4)   # <-- Espacia los requests 2 segundos
+            await asyncio.sleep(4)   # <-- Espaciá requests para evitar baneos
 
     tareas = [
         create_task(scrapear_venue_fecha(venue, fecha))
@@ -109,11 +128,10 @@ async def scrapear_concurrente(venues, fechas, db_path="disponibilidad.db", max_
     ]
     await gather(*tareas)
 
-# === USO ===
+# 6. Main
 if __name__ == "__main__":
     hoy = datetime.date.today()
-    fechas = [(hoy + datetime.timedelta(days=i)).strftime("%Y%m%d") for i in range(7)]
-
+    fechas = [(hoy + datetime.timedelta(days=i)).strftime("%Y%m%d") for i in range(7)] # 7 días
     start = time.time()
     asyncio.run(scrapear_concurrente(VENUES, fechas, max_concurrent=4))
     end = time.time()
