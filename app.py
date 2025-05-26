@@ -17,6 +17,6 @@ def disponibilidad(venue: str, fecha: str):
         query = select(horarios).where(
             (horarios.c.venue == venue) & (horarios.c.fecha == fecha)
         )
-        result: Result = conn.execute(query)
-        rows = [dict(row) for row in result]
+        result = conn.execute(query)
+        rows = [dict(row._mapping) for row in result]
     return rows
