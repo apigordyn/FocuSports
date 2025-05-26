@@ -133,6 +133,6 @@ if __name__ == "__main__":
     hoy = datetime.date.today()
     fechas = [(hoy + datetime.timedelta(days=i)).strftime("%Y%m%d") for i in range(7)] # 7 días
     start = time.time()
-    asyncio.run(scrapear_concurrente(VENUES, fechas, max_concurrent=4))
+    asyncio.run(scrapear_concurrente(VENUES, fechas, max_concurrent=1))
     end = time.time()
     print(f"\nTiempo total: {end - start:.2f} segundos")
