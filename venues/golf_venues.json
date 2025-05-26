@@ -1,0 +1,38 @@
+{
+  "Wakehurst": {
+    "domain": "www.wakehurstgolf.com.au",
+    "bookingResourceId": "3000000",
+    "feeGroupIds": {
+      "18": "1510657214",
+      "9": "1510703764"
+    }
+  },
+  "Mona Vale": {
+    "domain": "www.mvgc.com.au",
+    "bookingResourceId": "3000000",
+    "feeGroupIds": {
+      "18": "1507287399"
+    }
+  },
+  "Long Reef": {
+    "domain": "longreef.miclub.com.au",
+    "bookingResourceId": "3000000",
+    "feeGroupIds": {
+      "18": "3752188"
+    }
+  },
+  "Asquith": {
+    "domain": "www.asquithgolfclub.com.au",
+    "bookingResourceId": "3000000",
+    "feeGroupIds": {
+      "18": "9880124"
+    }
+  },
+  "North Turramurra": {
+    "domain": "northturramurra.miclub.com.au",
+    "bookingResourceId": "3000000",
+    "feeGroupIds": {
+      "18": "125669"
+    }
+  }
+}
