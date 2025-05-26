@@ -14,7 +14,7 @@ app = FastAPI()
 @app.get("/disponibilidad")
 def disponibilidad(venue: str, fecha: str):
     with engine.connect() as conn:
-        query = select([horarios]).where(
+        query = select(horarios).where(
             (horarios.c.venue == venue) & (horarios.c.fecha == fecha)
         )
         result: Result = conn.execute(query)
