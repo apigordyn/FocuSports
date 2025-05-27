@@ -1,12 +1,38 @@
 import os
 from fastapi import FastAPI
-from sqlalchemy import create_engine, MetaData, Table, select
+from sqlalchemy import create_engine, MetaData
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 engine = create_engine(DATABASE_URL)
+
+# CREA TABLA golf_horarios SI NO EXISTE (y la de tenis también, por si acaso)
+with engine.connect() as conn:
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS horarios (
+            id SERIAL PRIMARY KEY,
+            venue TEXT,
+            fecha TEXT,
+            cancha TEXT,
+            hora TEXT,
+            link TEXT,
+            UNIQUE(venue, fecha, cancha, hora)
+        );
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS golf_horarios (
+            id SERIAL PRIMARY KEY,
+            venue TEXT,
+            fecha TEXT,
+            hora TEXT,
+            hoyos INTEGER,
+            lugares INTEGER,
+            link TEXT,
+            UNIQUE(venue, fecha, hora, hoyos)
+        );
+    """)
+
 metadata = MetaData()
 metadata.reflect(bind=engine)
-
 horarios = metadata.tables["horarios"]
 golf_horarios = metadata.tables["golf_horarios"]
 
@@ -15,7 +41,7 @@ app = FastAPI()
 @app.get("/disponibilidad_tennis")
 def disponibilidad_tennis(venue: str, fecha: str, hora: str = None):
     with engine.connect() as conn:
-        query = select(horarios).where(
+        query = horarios.select().where(
             (horarios.c.venue == venue) & (horarios.c.fecha == fecha)
         )
         if hora:
@@ -27,7 +53,7 @@ def disponibilidad_tennis(venue: str, fecha: str, hora: str = None):
 @app.get("/disponibilidad_golf")
 def disponibilidad_golf(venue: str, fecha: str, hora: str = None, hoyos: int = None):
     with engine.connect() as conn:
-        query = select(golf_horarios).where(
+        query = golf_horarios.select().where(
             (golf_horarios.c.venue == venue) & (golf_horarios.c.fecha == fecha)
         )
         if hora:
