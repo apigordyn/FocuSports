@@ -11,7 +11,8 @@
     "domain": "www.mvgc.com.au",
     "bookingResourceId": "3000000",
     "feeGroupIds": {
-      "18": "1507287399"
+      "18": "1507287399",
+      "9": "1507287400"
     }
   },
   "Long Reef": {
@@ -25,14 +26,39 @@
     "domain": "www.asquithgolfclub.com.au",
     "bookingResourceId": "3000000",
     "feeGroupIds": {
-      "18": "9880124"
+      "18": "9880124",
+      "9": "9881209"
     }
   },
   "North Turramurra": {
     "domain": "northturramurra.miclub.com.au",
     "bookingResourceId": "3000000",
     "feeGroupIds": {
-      "18": "125669"
+      "18": "125669",
+      "9": "125673"
     }
+  },
+  "Warringah": {
+  "domain": "warringah.miclub.com.au",
+  "bookingResourceId": "3000000",
+  "feeGroupIds": {
+    "18": "107999",
+    "9": "108003"
   }
+},
+"Balgowlah": {
+  "domain": "www.balgowlahgolfclub.com.au",
+  "bookingResourceId": "3000000",
+  "feeGroupIds": {
+    "18": "2165",
+    "9": "5380"
+  }
+},
+"Cammeray": {
+  "domain": "cammeray.miclub.com.au",
+  "bookingResourceId": "3000000",
+  "feeGroupIds": {
+    "9": "138965"
+  }
+}
 }
