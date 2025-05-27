@@ -1,13 +1,13 @@
 import os
 from fastapi import FastAPI
 from sqlalchemy import create_engine, MetaData
+from sqlalchemy import text
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 engine = create_engine(DATABASE_URL)
 
-# CREA TABLA golf_horarios SI NO EXISTE (y la de tenis también, por si acaso)
 with engine.connect() as conn:
-    conn.execute("""
+    conn.execute(text("""
         CREATE TABLE IF NOT EXISTS horarios (
             id SERIAL PRIMARY KEY,
             venue TEXT,
@@ -17,8 +17,8 @@ with engine.connect() as conn:
             link TEXT,
             UNIQUE(venue, fecha, cancha, hora)
         );
-    """)
-    conn.execute("""
+    """))
+    conn.execute(text("""
         CREATE TABLE IF NOT EXISTS golf_horarios (
             id SERIAL PRIMARY KEY,
             venue TEXT,
@@ -29,7 +29,7 @@ with engine.connect() as conn:
             link TEXT,
             UNIQUE(venue, fecha, hora, hoyos)
         );
-    """)
+    """))
 
 metadata = MetaData()
 metadata.reflect(bind=engine)
