@@ -12,8 +12,8 @@ golf_horarios = metadata.tables["golf_horarios"]
 
 app = FastAPI()
 
-@app.get("/disponibilidad")
-def disponibilidad(venue: str, fecha: str, hora: str = None):
+@app.get("/disponibilidad_tennis")
+def disponibilidad_tennis(venue: str, fecha: str, hora: str = None):
     with engine.connect() as conn:
         query = select(horarios).where(
             (horarios.c.venue == venue) & (horarios.c.fecha == fecha)
