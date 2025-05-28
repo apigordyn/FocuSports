@@ -12,7 +12,22 @@ golf_horarios = metadata.tables.get("golf_horarios")
 
 app = FastAPI()
 
+def formatear_hora_estandar(hora_str):
+    s = hora_str.replace('.', '').replace('AM', ' AM').replace('PM', ' PM').strip().upper()
+    formatos = ["%H:%M", "%I:%M %p", "%I:%M%p"]
+    dt = None
+    for fmt in formatos:
+        try:
+            dt = datetime.strptime(s, fmt)
+            break
+        except Exception:
+            continue
+    if dt is None:
+        return hora_str
+    return dt.strftime("%I:%M %p")
+
 def redondear_a_media_hora(hora_str):
+    # Siempre usa la función formatear_hora_estandar para entrada
     s = hora_str.replace('.', '').replace('AM', ' AM').replace('PM', ' PM').strip().upper()
     formatos = ["%H:%M", "%I:%M %p", "%I:%M%p"]
     dt = None
@@ -33,7 +48,7 @@ def redondear_a_media_hora(hora_str):
         dt += timedelta(hours=1)
         rounded_minute = 0
     dt = dt.replace(minute=rounded_minute, second=0)
-    return dt.strftime(fmt)
+    return dt.strftime("%I:%M %p")
 
 @app.get("/disponibilidad_tennis")
 def disponibilidad_tennis(
@@ -53,6 +68,7 @@ def disponibilidad_tennis(
         result = conn.execute(query)
         rows = [dict(row._mapping) for row in result]
         for row in rows:
+            row["hora"] = formatear_hora_estandar(row["hora"])
             row["hora_redondeada"] = redondear_a_media_hora(row["hora"])
         if hora_redondeada:
             hora_redondeada_norm = redondear_a_media_hora(hora_redondeada)
@@ -80,6 +96,7 @@ def disponibilidad_golf(
         result = conn.execute(query)
         rows = [dict(row._mapping) for row in result]
         for row in rows:
+            row["hora"] = formatear_hora_estandar(row["hora"])
             row["hora_redondeada"] = redondear_a_media_hora(row["hora"])
         if hora_redondeada:
             hora_redondeada_norm = redondear_a_media_hora(hora_redondeada)
@@ -110,6 +127,7 @@ def disponibilidad_general(
                 tennis_query = tennis_query.where(horarios.c.hora == hora)
             tennis_rows = [dict(row._mapping) for row in conn.execute(tennis_query)]
             for row in tennis_rows:
+                row["hora"] = formatear_hora_estandar(row["hora"])
                 row["hora_redondeada"] = redondear_a_media_hora(row["hora"])
                 if hora_redondeada_val:
                     if row["hora_redondeada"] == hora_redondeada_val:
@@ -125,6 +143,7 @@ def disponibilidad_general(
                 golf_query = golf_query.where(golf_horarios.c.hora == hora)
             golf_rows = [dict(row._mapping) for row in conn.execute(golf_query)]
             for row in golf_rows:
+                row["hora"] = formatear_hora_estandar(row["hora"])
                 row["hora_redondeada"] = redondear_a_media_hora(row["hora"])
                 if hora_redondeada_val:
                     if row["hora_redondeada"] == hora_redondeada_val:
