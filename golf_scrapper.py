@@ -88,7 +88,7 @@ def main():
 
     crear_tabla_golf_postgres()
     results = []
-    for dia in next_n_full_weeks(3):
+    for dia in next_n_full_weeks(4):
         date_iso = dia.isoformat()
         fecha_fmt = dia.strftime("%Y%m%d")
         for club, data in COURSES.items():
