@@ -16,6 +16,12 @@ VENUES = [
     "allambie-heights-tennis",
     "narraweena-tennis-club",
     "collaroy-tc",
+    "bareena-park-tc",
+    "manly-lawn-tc",
+    "koobilya-st-tennis-court",
+    "wyatt-park-tc",
+    "forestville-park-tc"
+    
 ]
 
 # 1. Conexión a Postgres
@@ -131,8 +137,8 @@ async def scrapear_concurrente(venues, fechas, max_concurrent=4):
 # 6. Main
 if __name__ == "__main__":
     hoy = datetime.date.today()
-    fechas = [(hoy + datetime.timedelta(days=i)).strftime("%Y%m%d") for i in range(7)] # 7 días
+    fechas = [(hoy + datetime.timedelta(days=i)).strftime("%Y%m%d") for i in range(28)] # 7 días
     start = time.time()
-    asyncio.run(scrapear_concurrente(VENUES, fechas, max_concurrent=1))
+    asyncio.run(scrapear_concurrente(VENUES, fechas, max_concurrent=2))
     end = time.time()
     print(f"\nTiempo total: {end - start:.2f} segundos")
