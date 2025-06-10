@@ -1,9 +1,5 @@
 fastapi
 uvicorn
 pandas
-playwright
 psycopg2-binary
 sqlalchemy
-nest_asyncio
-beautifulsoup4
-requests
