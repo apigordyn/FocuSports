@@ -15,4 +15,4 @@ RUN pip install -r requirements.txt
 RUN playwright install --with-deps
 
 # Comando default (puede cambiar según cron o API)
-CMD ["bash", "-c", "python tennis_scrapper.py && python golf_scrapper.py"]
+CMD ["bash", "-c", "python soccer_scrapper.py"]
