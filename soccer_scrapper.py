@@ -39,7 +39,7 @@ def crear_tabla_futsal():
     cur = conn.cursor()
     # Crea la tabla con el constraint correcto
     cur.execute("""
-        CREATE TABLE futsal_horarios (
+        CREATE TABLE IF NOT EXISTS futsal_horarios (
             id SERIAL PRIMARY KEY,
             venue TEXT,
             fecha TEXT,
