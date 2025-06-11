@@ -18,6 +18,7 @@ def get_conn():
 def crear_tabla_golf_postgres():
     conn = get_conn()
     cur = conn.cursor()
+    cur.execute("DROP TABLE IF EXISTS golf_horarios;")
     cur.execute("""
         CREATE TABLE IF NOT EXISTS golf_horarios (
             id SERIAL PRIMARY KEY,
