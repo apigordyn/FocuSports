@@ -57,7 +57,7 @@ def borrar_registros_viejos():
     conn = get_conn()
     cur = conn.cursor()
     hoy = date.today().strftime("%Y%m%d")
-    cur.execute("DELETE FROM horarios_golf WHERE fecha < %s;", (hoy,))
+    cur.execute("DELETE FROM golf_horarios WHERE fecha < %s;", (hoy,))
     conn.commit()
     cur.close()
     conn.close()
