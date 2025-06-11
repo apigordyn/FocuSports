@@ -29,7 +29,6 @@ def get_conn():
 def crear_tabla_postgres():
     conn = get_conn()
     cur = conn.cursor()
-    cur.execute("DROP TABLE IF EXISTS horarios;")
     cur.execute("""
         CREATE TABLE IF NOT EXISTS horarios (
             id SERIAL PRIMARY KEY,
@@ -44,7 +43,16 @@ def crear_tabla_postgres():
     conn.commit()
     cur.close()
     conn.close()
-
+    
+def borrar_registros_viejos():
+    conn = get_conn()
+    cur = conn.cursor()
+    hoy = datetime.date.today().strftime("%Y%m%d")
+    cur.execute("DELETE FROM horarios WHERE fecha < %s;", (hoy,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    
 # 3. Scraper
 async def extraer_disponibilidad(venue, fecha="20250528"):
     url = f"https://www.tennisvenues.com.au/booking/{venue}?date={fecha}"
@@ -111,6 +119,7 @@ async def scrapear_concurrente(venues, fechas, max_concurrent=4):
     from asyncio import Semaphore, create_task, gather
 
     crear_tabla_postgres()
+    borrar_registros_viejos()
     sem = Semaphore(max_concurrent)
 
     async def scrapear_venue_fecha(venue, fecha):
