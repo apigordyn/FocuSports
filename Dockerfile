@@ -11,8 +11,5 @@ COPY . /app
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
-# Instala los browsers (ya viene hecho en esta imagen, pero por si acaso)
-RUN playwright install --with-deps
-
 # Comando default (puede cambiar según cron o API)
 CMD ["bash", "-c", "python golf_scrapper.py"]
