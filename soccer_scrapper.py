@@ -57,7 +57,7 @@ def crear_tabla_futsal():
 def borrar_registros_viejos():
     conn = get_conn()
     cur = conn.cursor()
-    hoy = datetime.date.today().strftime("%Y%m%d")
+    hoy = date.today().strftime("%Y%m%d")
     cur.execute("DELETE FROM horarios_futsal WHERE fecha < %s;", (hoy,))
     conn.commit()
     cur.close()
