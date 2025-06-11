@@ -18,7 +18,6 @@ def get_conn():
 def crear_tabla_golf_postgres():
     conn = get_conn()
     cur = conn.cursor()
-    cur.execute("DROP TABLE IF EXISTS golf_horarios;")
     cur.execute("""
         CREATE TABLE IF NOT EXISTS golf_horarios (
             id SERIAL PRIMARY KEY,
@@ -52,6 +51,15 @@ def guardar_golf_df_postgres(df):
                 "INSERT INTO golf_horarios (venue, fecha, hora, hoyos, lugares, link) VALUES %s ON CONFLICT DO NOTHING",
                 rows
             )
+    conn.close()
+
+def borrar_registros_viejos():
+    conn = get_conn()
+    cur = conn.cursor()
+    hoy = datetime.date.today().strftime("%Y%m%d")
+    cur.execute("DELETE FROM horarios_golf WHERE fecha < %s;", (hoy,))
+    conn.commit()
+    cur.close()
     conn.close()
 
 def extract_available_slots(url: str) -> List[Tuple[str, int]]:
@@ -88,6 +96,7 @@ def main():
         raise RuntimeError(f"❌ Could not load {course_path}: {e}")
 
     crear_tabla_golf_postgres()
+    borrar_registros_viejos()
     results = []
     for dia in next_n_full_weeks(4):
         date_iso = dia.isoformat()
