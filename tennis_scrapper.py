@@ -12,11 +12,10 @@ from psycopg2.extras import execute_values
 nest_asyncio.apply()
 
 VENUES = [
-    "oxford-fall-racquet-club",
-    "allambie-heights-tennis",
-    "narraweena-tennis-club",
-    "collaroy-tc",
-    "bareena-park-tc"
+    "manly-lawn-tc",
+    "koobilya-st-tennis-court",
+    "wyatt-park-tc",
+    "forestville-park-tc"
     
 ]
 
