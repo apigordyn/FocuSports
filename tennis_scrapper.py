@@ -34,6 +34,7 @@ def get_conn():
 def crear_tabla_postgres():
     conn = get_conn()
     cur = conn.cursor()
+    cur.execute("DROP TABLE IF EXISTS horarios;")
     cur.execute("""
         CREATE TABLE IF NOT EXISTS horarios (
             id SERIAL PRIMARY KEY,
