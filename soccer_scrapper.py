@@ -37,8 +37,6 @@ def get_conn():
 def crear_tabla_futsal():
     conn = get_conn()
     cur = conn.cursor()
-    # Borra la tabla si existe
-    cur.execute("DROP TABLE IF EXISTS futsal_horarios;")
     # Crea la tabla con el constraint correcto
     cur.execute("""
         CREATE TABLE futsal_horarios (
@@ -52,6 +50,15 @@ def crear_tabla_futsal():
             UNIQUE(venue, fecha, hora, court, minutos)
         );
     """)
+    conn.commit()
+    cur.close()
+    conn.close()
+
+def borrar_registros_viejos():
+    conn = get_conn()
+    cur = conn.cursor()
+    hoy = datetime.date.today().strftime("%Y%m%d")
+    cur.execute("DELETE FROM horarios_futsal WHERE fecha < %s;", (hoy,))
     conn.commit()
     cur.close()
     conn.close()
@@ -244,6 +251,7 @@ def expand_consecutive_blocks(df):
 async def main():
     start = time.time()
     crear_tabla_futsal()
+    borrar_registros_viejos()
     df_kikoff = scrape_kikoff()
     df_raw = await scrape_pittwater_multiple_days(days_to_scrap=DAYS_TO_SCRAPE)
     df_pittwater = expand_consecutive_blocks(df_raw)
