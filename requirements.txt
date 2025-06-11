@@ -1,5 +1,3 @@
-fastapi
-uvicorn
 pandas
 playwright
 psycopg2-binary
