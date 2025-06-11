@@ -56,7 +56,7 @@ def guardar_golf_df_postgres(df):
 def borrar_registros_viejos():
     conn = get_conn()
     cur = conn.cursor()
-    hoy = datetime.date.today().strftime("%Y%m%d")
+    hoy = date.today().strftime("%Y%m%d")
     cur.execute("DELETE FROM horarios_golf WHERE fecha < %s;", (hoy,))
     conn.commit()
     cur.close()
