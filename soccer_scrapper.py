@@ -9,7 +9,6 @@ import nest_asyncio
 import asyncio
 from playwright.async_api import async_playwright
 import time
-import random
 
 nest_asyncio.apply()
 
@@ -73,7 +72,9 @@ def guardar_futsal_df(df):
             venues = df['venue'].unique()
             fechas = df['fecha'].unique()
             for venue in venues:
+                print(venue)
                 for fecha in fechas:
+                    print(fecha)
                     cur.execute("DELETE FROM futsal_horarios WHERE venue=%s AND fecha=%s", (venue, fecha))
             rows = list(df[['venue', 'fecha', 'hora', 'minutos', 'court', 'link']].itertuples(index=False, name=None))
             execute_values(
@@ -132,50 +133,18 @@ def scrape_kikoff():
 # Scraper Pittwater (YepBooking)
 # ──────────────────────────────────────────────────────────────
 async def scrape_pittwater_multiple_days(days_to_scrap=28):
-    user_agent = (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/126.0.0.0 Safari/537.36"
-    )
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context(user_agent=user_agent)
-        page = await context.new_page()
+        page = await browser.new_page()
         await page.goto("https://pittwater-rsl-futsal.yepbooking.com.au/", timeout=60000)
 
         all_data = []
         for day_index in range(days_to_scrap):
-            retry = 0
-            date_header = None
-            while retry < 2:
-                try:
-                    await page.wait_for_selector("h3", timeout=8000)
-                    date_header = await page.query_selector("h3")
-                    if date_header:
-                        break
-                except Exception as e:
-                    print(f"Intento {retry+1}: No se encontró <h3>. Error: {e}")
-                    await asyncio.sleep(2)
-                retry += 1
-
-            if not date_header:
-                html = await page.content()
-                with open(f"debug_day_{day_index}.html", "w") as f:
-                    f.write(html)
-                print(f"No se encontró el <h3> en el día {day_index}. HTML guardado en debug_day_{day_index}.html")
-                # Esperar más y continuar (probablemente bloqueo)
-                await asyncio.sleep(random.uniform(20, 30))
-                continue
-
+            #await page.wait_for_selector("a.empty", timeout=10000)
+            #await page.wait_for_selector("h3")
+            date_header = await page.query_selector("h3")
             date_text = await date_header.inner_text()
             current_date = parser.parse(date_text).strftime("%d-%m-%Y")
-
-            # --- Simular scroll y acción humana rápida (1s)
-            await page.mouse.move(random.randint(0, 300), random.randint(0, 300))
-            await page.mouse.down()
-            await page.mouse.up()
-            await page.keyboard.press('PageDown')
-            await asyncio.sleep(random.uniform(0.5, 1.5))
 
             slots = await page.query_selector_all("a.empty")
 
@@ -186,6 +155,7 @@ async def scrape_pittwater_multiple_days(days_to_scrap=28):
                     try:
                         hora_inicio, hora_fin = title.split(" - ")[0].split("–")
                         court_number = lc.split("|")[0].strip()
+
                         all_data.append({
                             "venue": "Pittwater RSL",
                             "fecha": current_date,
@@ -196,13 +166,12 @@ async def scrape_pittwater_multiple_days(days_to_scrap=28):
                     except:
                         continue
 
-            # --- Delay random más corto entre días (para cumplir máximo 8 min)
+            # Click to next day if not the last day
             if day_index < days_to_scrap - 1:
                 next_button = await page.query_selector("#nextDateMover")
                 if next_button:
-                    delay = random.uniform(7, 13)
-                    print(f"Esperando {delay:.1f} segundos para evitar bloqueos (modo rápido)...")
-                    await page.wait_for_timeout(int(delay * 1000))
+                    await next_button.click()
+                    await page.wait_for_timeout(3000)
 
         await browser.close()
         return pd.DataFrame(all_data)
