@@ -222,7 +222,7 @@ async def main():
     crear_tabla_futsal()
     borrar_registros_viejos()
     df_kikoff = scrape_kikoff()
-    df_raw = await scrape_pittwater_multiple_days(days_to_scrap=DAYS_TO_SCRAPE)
+    df_raw = await scrape_pittwater_multiple_days(days_to_scrap=14)
     df_pittwater = expand_consecutive_blocks(df_raw)
     # Unificá outputs y columnas
     df = pd.concat([df_kikoff, df_pittwater], ignore_index=True)
