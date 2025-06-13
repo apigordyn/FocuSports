@@ -5,11 +5,8 @@ from datetime import datetime, date, timedelta
 from dateutil import parser
 import psycopg2
 from psycopg2.extras import execute_values
-import nest_asyncio
 import asyncio
 import time
-
-nest_asyncio.apply()
 
 # ──────────────────────────────────────────────────────────────
 # Configuración general
@@ -119,7 +116,7 @@ def scrape_kikoff():
                         f"{time_encoded}?categories%5B%5D=Pitch+Hire"
                     )
                     all_rows.append({
-                        "venue": "KIKOFF",
+                        "venue": "Kikoff Harbord",
                         "fecha": dt.strftime("%Y%m%d"),
                         "hora": dt.strftime("%I:%M %p"),
                         "minutos": duration,
