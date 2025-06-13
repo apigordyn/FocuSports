@@ -178,7 +178,7 @@ async def main():
     crear_tabla_futsal()
     borrar_registros_viejos()
     df_raw = await scrape_one_day(DAYS_AHEAD)
-    df_pittwater = expand_consecutive_blocks(df_raw)
+    df = expand_consecutive_blocks(df_raw)
     # Unificá outputs y columnas
     guardar_futsal_df(df)
     print(f"Guardados {len(df)} registros de futsal Pittwater.")
