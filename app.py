@@ -82,7 +82,8 @@ def disponibilidad_golf(
     venue: str = None,
     hora: str = None,
     hoyos: int = None,
-    hora_redondeada: str = None
+    hora_redondeada: str = None,
+    lugares: int = None
 ):
     if golf_horarios is None:
         raise HTTPException(status_code=500, detail="Tabla 'golf_horarios' no existe en la base")
@@ -94,6 +95,8 @@ def disponibilidad_golf(
             query = query.where(golf_horarios.c.hora == hora)
         if hoyos:
             query = query.where(golf_horarios.c.hoyos == hoyos)
+        if lugares:
+            query = query.where(golf_horarios.c.lugares == lugares)
         result = conn.execute(query)
         rows = [dict(row._mapping) for row in result]
         for row in rows:
@@ -111,6 +114,7 @@ def disponibilidad_futsal(
     hora: str = None,
     hora_redondeada: str = None,
     court: str = None,
+    minutos: int= None
 ):
     if futsal_horarios is None:
         raise HTTPException(status_code=500, detail="Tabla 'futsal_horarios' no existe en la base")
@@ -122,6 +126,8 @@ def disponibilidad_futsal(
             query = query.where(futsal_horarios.c.court == court)
         if hora:
             query = query.where(futsal_horarios.c.hora == hora)
+        if minutos:
+            query = query.where(futsal_horarios.c.minutos == minutos)
         result = conn.execute(query)
         rows = [dict(row._mapping) for row in result]
         for row in rows:
@@ -140,6 +146,9 @@ def disponibilidad_general(
     deporte: str = Query(None, regex="^(tennis|golf|futsal)?$"),
     venue: str = None,
     court: str = None,
+    minutos: int = None,
+    hoyos: int = None,
+    lugares: int = None
 ):
     hora_redondeada_val = None
     if hora_redondeada:
@@ -171,6 +180,10 @@ def disponibilidad_general(
                 golf_query = golf_query.where(golf_horarios.c.venue == venue)
             if hora:
                 golf_query = golf_query.where(golf_horarios.c.hora == hora)
+            if hoyos:
+                golf_query = golf_query.where(golf_horarios.c.hoyos == hoyos)
+            if lugares:
+                golf_query = golf_query.where(golf_horarios.c.lugares >= lugares)
             golf_rows = [dict(row._mapping) for row in conn.execute(golf_query)]
             for row in golf_rows:
                 row["hora"] = formatear_hora_estandar(row["hora"])
@@ -189,6 +202,8 @@ def disponibilidad_general(
                 futsal_query = futsal_query.where(futsal_horarios.c.court == court)
             if hora:
                 futsal_query = futsal_query.where(futsal_horarios.c.hora == hora)
+            if minutos:
+                futsal_query = futsal_query.where(futsal_horarios.c.minutos == minutos)
             futsal_rows = [dict(row._mapping) for row in conn.execute(futsal_query)]
             for row in futsal_rows:
                 row["hora"] = formatear_hora_estandar(row["hora"])
