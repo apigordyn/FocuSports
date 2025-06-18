@@ -15,7 +15,8 @@ VENUES = [
     "manly-lawn-tc",
     "koobilya-st-tennis-court",
     "wyatt-park-tc",
-    "forestville-park-tc"
+    "forestville-park-tc",
+    "mosman-lawn-tc"
     
 ]
 
