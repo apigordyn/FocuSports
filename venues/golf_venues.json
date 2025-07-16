@@ -1,95 +1,94 @@
 {
-  "Wakehurst": {
-    "domain": "www.wakehurstgolf.com.au",
-    "bookingResourceId": "3000000",
-    "feeGroupIds": {
-      "18": "1510657214",
-      "9": "1510703764"
-    }
-  },
-  "Mona Vale": {
-    "domain": "www.mvgc.com.au",
-    "bookingResourceId": "3000000",
-    "feeGroupIds": {
-      "18": "1507287399",
-      "9": "1507287400"
-    }
-  },
-  "Long Reef": {
-    "domain": "longreef.miclub.com.au",
-    "bookingResourceId": "3000000",
-    "feeGroupIds": {
-      "18": "3752188"
-    }
-  },
-  "Asquith": {
-    "domain": "www.asquithgolfclub.com.au",
-    "bookingResourceId": "3000000",
-    "feeGroupIds": {
-      "18": "9880124",
-      "9": "9881209"
-    }
-  },
-  "North Turramurra": {
-    "domain": "northturramurra.miclub.com.au",
-    "bookingResourceId": "3000000",
-    "feeGroupIds": {
-      "18": "125669",
-      "9": "125673"
-    }
-  },
-  "Warringah": {
-  "domain": "warringah.miclub.com.au",
+"Oak Point": {
+  "domain": "oakpoint.miclub.com.au",
   "bookingResourceId": "3000000",
   "feeGroupIds": {
-    "18": "107999",
-    "9": "108003"
+    "9": "1506998236",
+    "18": "1506996143"
   }
 },
-"Balgowlah": {
-  "domain": "www.balgowlahgolfclub.com.au",
+  "Brighton Lakes": {
+  "domain": "brightonlakes.miclub.com.au",
   "bookingResourceId": "3000000",
   "feeGroupIds": {
-    "18": "2165",
-    "9": "5380"
+    "9": "4328836",
+    "18": "4328880"
   }
 },
-"Cammeray": {
-  "domain": "cammeray.miclub.com.au",
+  "Strathfield": {
+  "domain": "strathfieldgolf.com.au",
   "bookingResourceId": "3000000",
   "feeGroupIds": {
-    "9": "138965"
+    "18": "1514453417"
   }
 },
-"Camden": {
-  "domain": "camdengolfclub.com.au",
+  "Beverly Park": {
+  "domain": "beverleypark.miclub.com.au",
   "bookingResourceId": "3000000",
   "feeGroupIds": {
-    "9": "4891454",
-    "18": "4891447"
+    "9": "5268234",
+    "18": "5268233"
   }
 },
-  "Woolooware": {
-  "domain": "wooloowaregolfclub.com.au",
+  "The Coast Golf": {
+  "domain": "coastgolf.com.au",
   "bookingResourceId": "3000000",
   "feeGroupIds": {
-    "9": "3357674"
+    "18": "1508176600"
   }
 },
-  "Kareela": {
-  "domain": "kareela.miclub.com.au",
+  "Cumberland Country": {
+  "domain": "cumberland.miclub.com.au",
   "bookingResourceId": "3000000",
   "feeGroupIds": {
-    "9": "138965",
-    "18": "3498882"
+    "9": "101310",
+    "18": "101309"
   }
 },
-  "Bankstown": {
-  "domain": "kareela.miclub.com.au",
+  "Stonecutters Ridge": {
+  "domain": "stonecuttersgc.com.au",
   "bookingResourceId": "3000000",
   "feeGroupIds": {
-    "9": "1509794765",
-    "18": "1502474944"
+    "18": "1509251471"
+  }
+},
+  "Muirfield": {
+  "domain": "muirfieldgolf.com.au",
+  "bookingResourceId": "3000000",
+  "feeGroupIds": {
+    "9": "1511294707",
+    "18": "1511294706"
+  }
+},
+  "Moore Park": {
+  "domain": "moorepark.miclub.com.au",
+  "bookingResourceId": "3050007",
+  "feeGroupIds": {
+    "9": "1501386657",
+    "18": "1501385381"
+  }
+},
+  "Massey Park": {
+  "domain": "masseypark.miclub.com.au",
+  "bookingResourceId": "3000000",
+  "feeGroupIds": {
+    "9": "104613",
+    "18": "104612"
+  }
+},
+  "North Ryde": {
+  "domain": "northrydegolfclub.com.au",
+  "bookingResourceId": "3000000",
+  "feeGroupIds": {
+    "18": "5351785"
+  }
+},
+  "Gordon": {
+  "domain": "gordongolfcourse.com.au",
+  "bookingResourceId": "187",
+  "feeGroupIds": {
+    "9": "426",
+    "18": "404"
   }
 }
 }
