@@ -102,23 +102,26 @@ def main():
         date_iso = dia.isoformat()
         fecha_fmt = dia.strftime("%Y%m%d")
         for club, data in COURSES.items():
-            domain = data["domain"]
-            booking_id = data["bookingResourceId"]
-            fee_groups = data["feeGroupIds"]
-            for hoyos_str, fee_id in fee_groups.items():
-                url = (
-                    f"https://{domain}/guests/bookings/ViewPublicTimesheet.msp"
-                    f"?bookingResourceId={booking_id}&selectedDate={date_iso}&feeGroupId={fee_id}"
-                )
-                for time_str, free in extract_available_slots(url):
-                    results.append({
-                        "venue": club,
-                        "fecha": fecha_fmt,
-                        "hora": time_str,
-                        "hoyos": int(hoyos_str),
-                        "lugares": free,
-                        "link": url
-                    })
+            try:
+                domain = data["domain"]
+                booking_id = data["bookingResourceId"]
+                fee_groups = data["feeGroupIds"]
+                for hoyos_str, fee_id in fee_groups.items():
+                    url = (
+                        f"https://{domain}/guests/bookings/ViewPublicTimesheet.msp"
+                        f"?bookingResourceId={booking_id}&selectedDate={date_iso}&feeGroupId={fee_id}"
+                    )
+                    for time_str, free in extract_available_slots(url):
+                        results.append({
+                            "venue": club,
+                            "fecha": fecha_fmt,
+                            "hora": time_str,
+                            "hoyos": int(hoyos_str),
+                            "lugares": free,
+                            "link": url
+                        })
+            except:
+                continue
 
     df = pd.DataFrame(results)
     print(df)
