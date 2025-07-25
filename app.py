@@ -56,7 +56,8 @@ def disponibilidad_tennis(
     fecha: str,
     venue: str = None,
     hora: str = None,
-    hora_redondeada: str = None
+    hora_redondeada: str = None,
+    min_duracion: int = None  # Nuevo parámetro
 ):
     if horarios is None:
         raise HTTPException(status_code=500, detail="Tabla 'horarios' no existe en la base")
@@ -66,6 +67,8 @@ def disponibilidad_tennis(
             query = query.where(horarios.c.venue == venue)
         if hora:
             query = query.where(horarios.c.hora == hora)
+        if min_duracion:
+            query = query.where(horarios.c.duracion_max_min >= min_duracion)
         result = conn.execute(query)
         rows = [dict(row._mapping) for row in result]
         for row in rows:
@@ -114,7 +117,7 @@ def disponibilidad_futsal(
     hora: str = None,
     hora_redondeada: str = None,
     court: str = None,
-    minutos: int= None
+    minutos: int = None
 ):
     if futsal_horarios is None:
         raise HTTPException(status_code=500, detail="Tabla 'futsal_horarios' no existe en la base")
@@ -148,7 +151,8 @@ def disponibilidad_general(
     court: str = None,
     minutos: int = None,
     hoyos: int = None,
-    lugares: int = None
+    lugares: int = None,
+    min_duracion: int = None  # Nuevo parámetro
 ):
     hora_redondeada_val = None
     if hora_redondeada:
@@ -164,6 +168,8 @@ def disponibilidad_general(
                 tennis_query = tennis_query.where(horarios.c.venue == venue)
             if hora:
                 tennis_query = tennis_query.where(horarios.c.hora == hora)
+            if min_duracion:
+                tennis_query = tennis_query.where(horarios.c.duracion_max_min >= min_duracion)
             tennis_rows = [dict(row._mapping) for row in conn.execute(tennis_query)]
             for row in tennis_rows:
                 row["hora"] = formatear_hora_estandar(row["hora"])
