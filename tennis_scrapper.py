@@ -22,7 +22,6 @@ VENUES = [
 
 # 1. Conexión a Postgres
 def get_conn():
-    # Tomá el string de conexión de la variable de entorno o editá acá
     DATABASE_URL = os.getenv("DATABASE_URL")
     return psycopg2.connect(DATABASE_URL)
 
@@ -37,6 +36,7 @@ def crear_tabla_postgres():
             fecha TEXT,
             cancha TEXT,
             hora TEXT,
+            duracion_max_min INTEGER,
             link TEXT,
             UNIQUE(venue, fecha, cancha, hora)
         )
@@ -44,7 +44,7 @@ def crear_tabla_postgres():
     conn.commit()
     cur.close()
     conn.close()
-    
+
 def borrar_registros_viejos():
     conn = get_conn()
     cur = conn.cursor()
@@ -53,7 +53,7 @@ def borrar_registros_viejos():
     conn.commit()
     cur.close()
     conn.close()
-    
+
 # 3. Scraper
 async def extraer_disponibilidad(venue, fecha="20250528"):
     url = f"https://www.tennisvenues.com.au/booking/{venue}?date={fecha}"
@@ -69,7 +69,7 @@ async def extraer_disponibilidad(venue, fecha="20250528"):
         except Exception as e:
             print(f"❌ Error en {venue}-{fecha}: {e}")
             await browser.close()
-            return pd.DataFrame()  # Vacío
+            return pd.DataFrame()
 
         enlaces = await page.query_selector_all("td.TimeCell.Available a")
         for a in enlaces:
@@ -91,6 +91,33 @@ async def extraer_disponibilidad(venue, fecha="20250528"):
         await browser.close()
 
     df = pd.DataFrame(resultados).drop_duplicates()
+
+    # Calcular duración máxima consecutiva desde cada hora
+    if not df.empty:
+        df['hora_dt'] = pd.to_datetime(df['hora'], format='%H:%M')
+        df['hora_min'] = df['hora_dt'].dt.hour * 60 + df['hora_dt'].dt.minute
+        df = df.sort_values(['venue', 'fecha', 'cancha', 'hora_min'])
+
+        duraciones = []
+
+        for (venue_g, fecha_g, cancha_g), group in df.groupby(['venue', 'fecha', 'cancha']):
+            horas = sorted(group['hora_min'].tolist())
+            durs = [30] * len(horas)
+
+            for i in range(len(horas)):
+                actual = horas[i]
+                dur = 30
+                j = i + 1
+                while j < len(horas) and horas[j] == actual + 30:
+                    dur += 30
+                    actual += 30
+                    j += 1
+                durs[i] = dur
+
+            df.loc[group.index, 'duracion_max_min'] = durs
+
+        df.drop(columns=['hora_dt', 'hora_min'], inplace=True)
+
     return df
 
 # 4. Guardado en Postgres (Bulk)
@@ -100,17 +127,16 @@ def guardar_df_postgres(df):
     conn = get_conn()
     with conn:
         with conn.cursor() as cur:
-            # Borrar todos los registros de ese venue/fecha
             venues = df['venue'].unique()
             fechas = df['fecha'].unique()
             for venue in venues:
                 for fecha in fechas:
                     cur.execute("DELETE FROM horarios WHERE venue=%s AND fecha=%s", (venue, fecha))
-            # Insertar todo el dataframe de una vez
-            rows = list(df[['venue', 'fecha', 'cancha', 'hora', 'link']].itertuples(index=False, name=None))
+            df = df.fillna({'duracion_max_min': None})
+            rows = list(df[['venue', 'fecha', 'cancha', 'hora', 'duracion_max_min', 'link']].itertuples(index=False, name=None))
             execute_values(
                 cur,
-                "INSERT INTO horarios (venue, fecha, cancha, hora, link) VALUES %s ON CONFLICT DO NOTHING",
+                "INSERT INTO horarios (venue, fecha, cancha, hora, duracion_max_min, link) VALUES %s ON CONFLICT DO NOTHING",
                 rows
             )
     conn.close()
@@ -131,7 +157,7 @@ async def scrapear_concurrente(venues, fechas, max_concurrent=4):
             guardar_df_postgres(df)
             t1 = time.time()
             print(f"[FIN]    {venue} - {fecha} - {t1:.2f} (Duración: {t1-t0:.2f}s)")
-            await asyncio.sleep(4)   # <-- Espaciá requests para evitar baneos
+            await asyncio.sleep(4)
 
     tareas = [
         create_task(scrapear_venue_fecha(venue, fecha))
@@ -143,7 +169,7 @@ async def scrapear_concurrente(venues, fechas, max_concurrent=4):
 # 6. Main
 if __name__ == "__main__":
     hoy = datetime.date.today()
-    fechas = [(hoy + datetime.timedelta(days=i)).strftime("%Y%m%d") for i in range(28)] # 7 días
+    fechas = [(hoy + datetime.timedelta(days=i)).strftime("%Y%m%d") for i in range(28)]
     start = time.time()
     asyncio.run(scrapear_concurrente(VENUES, fechas, max_concurrent=1))
     end = time.time()
