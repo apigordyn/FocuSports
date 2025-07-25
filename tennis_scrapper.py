@@ -94,7 +94,7 @@ async def extraer_disponibilidad(venue, fecha="20250528"):
 
     # Calcular duración máxima consecutiva desde cada hora
     if not df.empty:
-        df['hora_dt'] = pd.to_datetime(df['hora'], format='%H:%M')
+        df['hora_dt'] = pd.to_datetime(df['hora'].str.strip().str.upper(), format='%I:%M%p')
         df['hora_min'] = df['hora_dt'].dt.hour * 60 + df['hora_dt'].dt.minute
         df = df.sort_values(['venue', 'fecha', 'cancha', 'hora_min'])
 
