@@ -132,7 +132,7 @@ def guardar_df_postgres(df):
             for venue in venues:
                 for fecha in fechas:
                     cur.execute("DELETE FROM horarios WHERE venue=%s AND fecha=%s", (venue, fecha))
-            df = df.fillna({'duracion_max_min': None})
+            df['duracion_max_min'] = df['duracion_max_min'].where(pd.notnull(df['duracion_max_min']), None)
             rows = list(df[['venue', 'fecha', 'cancha', 'hora', 'duracion_max_min', 'link']].itertuples(index=False, name=None))
             execute_values(
                 cur,
