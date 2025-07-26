@@ -16,8 +16,10 @@ VENUES = [
     "koobilya-st-tennis-court",
     "wyatt-park-tc",
     "forestville-park-tc",
-    "mosman-lawn-tc"
-    
+    "mosman-lawn-tc",
+    "southend-tc",
+    "sydney-boys-high-school",
+    "cooper-park-tc"
 ]
 
 # 1. Conexión a Postgres
