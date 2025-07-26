@@ -16,7 +16,11 @@ VENUES = [
     "allambie-heights-tennis",
     "narraweena-tennis-club",
     "collaroy-tc",
-    "bareena-park-tc"
+    "bareena-park-tc",
+    "eastern-suburbs-tennis-club",
+    "croker-park-tc",
+    "five-dock-tc"
+
 ]
 
 # 1. Conexión a Postgres
