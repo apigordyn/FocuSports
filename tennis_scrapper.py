@@ -12,15 +12,15 @@ from psycopg2.extras import execute_values
 nest_asyncio.apply()
 
 VENUES = [
-    "haberfield-tc",
-    "eastside-tennis-centre",
-    "latham-park-tc",
-    "snape-park-tc",
-    "trinity-tennis-centre",
-    "bexley-tennis-courts",
-    "rockdale-tc",
-    "cammeray-tc",
-    "meadowbank-park-tc"
+    "primrose-park-tc",
+    "wheatleigh-st-tennis",
+    "etdta-abuklea-rd-marsfield", #Abuklea Road Marsfield
+    "willis-park-tennis", #The Willis Recreation and Sports Centre
+    "vince-barclay-coaching-academy", #Vince Barclay Tennis Academy
+    "hdta-caterson-tc", #Caterson Tennis Centre
+    "hdta-dural-tc", #Dural tennis Centre
+    "kwta", #Kim Warwick Tennis - Hornsby
+    "waitara-tc" #Kim Warwick Tennis - Waitara
 ]
 
 # 1. Conexión a Postgres
