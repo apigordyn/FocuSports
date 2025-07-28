@@ -13,6 +13,16 @@ futsal_horarios = metadata.tables.get("futsal_horarios")
 
 app = FastAPI()
 
+@app.get("/debug_db")
+def debug_db():
+    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+    cur = conn.cursor()
+    cur.execute("SELECT current_database(), inet_server_addr(), inet_server_port();")
+    result = cur.fetchone()
+    cur.close()
+    conn.close()
+    return {"db_info": result}
+
 def formatear_hora_estandar(hora_str):
     s = hora_str.replace('.', '').replace('AM', ' AM').replace('PM', ' PM').strip().upper()
     formatos = ["%H:%M", "%I:%M %p", "%I:%M%p"]
