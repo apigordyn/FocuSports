@@ -13,6 +13,16 @@ futsal_horarios = metadata.tables.get("futsal_horarios")
 
 app = FastAPI()
 
+@app.get("/debug_tables")
+def debug_tables():
+    try:
+        metadata = MetaData()
+        metadata.reflect(bind=engine)
+        table_names = list(metadata.tables.keys())
+        return {"tables": table_names}
+    except Exception as e:
+        return {"error": str(e)}
+
 @app.get("/debug_db")
 def debug_db():
     conn = psycopg2.connect(os.getenv("DATABASE_URL"))
