@@ -281,7 +281,7 @@ def resumen_disponibilidad(
                 "horarios": {}
             }
 
-        resumen = json.loads(row[0])  # 👈 Necesario para convertir string JSON a dict
+        resumen = row[0]  # Ya es dict, no hacer json.loads
         print(f"✅ Resumen cargado exitosamente: {type(resumen)}")
 
         return {
