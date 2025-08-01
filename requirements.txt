@@ -1,6 +1,7 @@
-pandas
-psycopg2-binary
-sqlalchemy
-nest_asyncio
-beautifulsoup4
-requests
+beautifulsoup4==4.12.3
+pandas==2.2.2
+psycopg2-binary==2.9.9
+requests==2.31.0
+urllib3==2.2.1
+fake-useragent==1.5.1
+python-dotenv==1.0.1
