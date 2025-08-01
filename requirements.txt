@@ -1,5 +1,2 @@
-fastapi
-uvicorn
-pandas
 psycopg2-binary
-sqlalchemy
+pandas
