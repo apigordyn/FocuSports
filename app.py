@@ -22,7 +22,8 @@ DEPORTES = {
             "venue": "venue",
             "fecha": "fecha",
             "hora": "hora",
-            "minutos": "duracion_max_min"
+            "hoyos": "hoyos",
+            "lugares": "lugares"
         }
     },
     "futsal": {
@@ -36,10 +37,8 @@ DEPORTES = {
     }
 }
 
-
 def get_conn():
     return psycopg2.connect(DATABASE_URL)
-
 
 def formatear_hora_estandar(hora_str):
     s = hora_str.strip().replace('.', '').lower()
@@ -54,7 +53,6 @@ def formatear_hora_estandar(hora_str):
             continue
     print(f"⚠️ Hora inválida encontrada: {hora_str}")
     return hora_str
-
 
 def redondear_a_media_hora(hora_str):
     s = hora_str.strip().replace('.', '').lower()
@@ -79,7 +77,6 @@ def redondear_a_media_hora(hora_str):
         dt = dt.replace(minute=0) + timedelta(hours=1)
     return dt.strftime("%I:%M %p")
 
-
 def actualizar_resumen(deporte):
     print(f"🏁 Actualizando resumen para: {deporte}")
     config = DEPORTES[deporte]
@@ -95,13 +92,12 @@ def actualizar_resumen(deporte):
             print(f"✅ {len(rows)} filas recuperadas para {deporte}")
 
             data_por_fecha = {}
+
             for row in rows:
                 fecha = row[columnas["fecha"]]
                 hora = row[columnas["hora"]]
                 venue = row[columnas["venue"]]
-                minutos = row.get(columnas["minutos"], 0)
 
-                # Parseo defensivo
                 if not isinstance(fecha, str):
                     fecha = str(fecha)
                 if len(fecha) != 8:
@@ -117,10 +113,30 @@ def actualizar_resumen(deporte):
                 if hora_red not in data_por_fecha[fecha]:
                     data_por_fecha[fecha][hora_red] = {}
 
-                if venue not in data_por_fecha[fecha][hora_red]:
-                    data_por_fecha[fecha][hora_red][venue] = 0
-
-                data_por_fecha[fecha][hora_red][venue] += minutos
+                if deporte == "golf":
+                    hoyos = row.get(columnas.get("hoyos"))
+                    lugares = row.get(columnas.get("lugares"))
+                    if hoyos is None or lugares is None:
+                        continue
+                    hoyos = str(hoyos)
+                    if venue not in data_por_fecha[fecha][hora_red]:
+                        data_por_fecha[fecha][hora_red][venue] = {}
+                    if hoyos not in data_por_fecha[fecha][hora_red][venue]:
+                        data_por_fecha[fecha][hora_red][venue][hoyos] = lugares
+                    else:
+                        data_por_fecha[fecha][hora_red][venue][hoyos] = max(
+                            data_por_fecha[fecha][hora_red][venue][hoyos],
+                            lugares
+                        )
+                else:
+                    minutos = row.get(columnas.get("minutos"), 0)
+                    if venue not in data_por_fecha[fecha][hora_red]:
+                        data_por_fecha[fecha][hora_red][venue] = minutos
+                    else:
+                        data_por_fecha[fecha][hora_red][venue] = max(
+                            data_por_fecha[fecha][hora_red][venue],
+                            minutos
+                        )
 
             fechas_insertadas = list(data_por_fecha.keys())
             print(f"🧩 Insertando resumen por fecha para {len(fechas_insertadas)} fechas")
@@ -136,7 +152,6 @@ def actualizar_resumen(deporte):
                 print(f"  ✅ {deporte} - {fecha}: {len(horarios)} bloques de hora guardados")
 
     conn.close()
-
 
 if __name__ == "__main__":
     for deporte in DEPORTES.keys():
