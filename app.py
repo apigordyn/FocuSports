@@ -271,39 +271,9 @@ def resumen_disponibilidad(
             "horarios": {}
         }
 
-    resumen = json.loads(row[0])
+    resumen = row[0]
     return {
         "deporte": deporte,
         "fecha": fecha,
         "horarios": resumen
-    }
-
-@app.get("/debug_tennis_horas_fechas")
-def debug_tennis_horas_fechas():
-    if horarios is None:
-        raise HTTPException(status_code=500, detail="Tabla 'horarios' no existe en la base")
-
-    with engine.connect() as conn:
-        result = conn.execute(horarios.select())
-        horas = set()
-        fechas = set()
-        for row in result:
-            hora_raw = row._mapping.get("hora")
-            fecha_raw = row._mapping.get("fecha")
-            if hora_raw:
-                horas.add(hora_raw)
-            if fecha_raw:
-                fechas.add(fecha_raw)
-
-        print("\n🕒 Formatos únicos de HORA:")
-        for h in sorted(horas):
-            print(f"- {repr(h)}")
-
-        print("\n📅 Formatos únicos de FECHA:")
-        for f in sorted(fechas):
-            print(f"- {repr(f)}")
-
-    return {
-        "unique_horas": sorted(horas),
-        "unique_fechas": sorted(fechas)
     }
