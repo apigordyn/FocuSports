@@ -4,12 +4,12 @@ import datetime
 import psycopg2
 from psycopg2.extras import execute_values
 
-# 🔧 Conexión a Postgres
 def get_conn():
     DATABASE_URL = os.getenv("DATABASE_URL")
+    if not DATABASE_URL:
+        raise ValueError("DATABASE_URL not set")
     return psycopg2.connect(DATABASE_URL)
 
-# 📄 Crear tabla resumen si no existe
 def crear_tabla_resumen_si_no_existe():
     conn = get_conn()
     cur = conn.cursor()
@@ -25,7 +25,6 @@ def crear_tabla_resumen_si_no_existe():
     cur.close()
     conn.close()
 
-# 🕒 Normalizar hora al bloque más cercano
 def normalizar_hora(hora_str):
     try:
         hora_str = hora_str.replace('.', '').replace('AM', ' AM').replace('PM', ' PM').strip().upper()
@@ -47,18 +46,21 @@ def normalizar_hora(hora_str):
             dt = dt.replace(minute=0)
             dt = dt.replace(hour=(dt.hour + 1) % 24)
         return dt.strftime("%I:%M %p")
-    except Exception:
+    except Exception as e:
+        print("Error al normalizar hora:", hora_str, e)
         return None
 
-# 📊 Recalcular resumen para un deporte
 def recalcular_resumen(deporte):
     crear_tabla_resumen_si_no_existe()
     conn = get_conn()
+    tabla = "horarios" if deporte == "tennis" else f"{deporte}_horarios"
 
     with conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT fecha, hora, venue FROM horarios WHERE venue ILIKE %s;", (f"%{deporte}%",))
+            print(f"📥 Seleccionando datos desde {tabla}...")
+            cur.execute(f"SELECT fecha, hora, venue FROM {tabla};")
             rows = cur.fetchall()
+            print(f"✅ {len(rows)} filas recuperadas para {deporte}")
 
             data_por_fecha = {}
             for fecha, hora, venue in rows:
@@ -69,6 +71,8 @@ def recalcular_resumen(deporte):
                     data_por_fecha[fecha] = {}
                 data_por_fecha[fecha].setdefault(hora_norm, set()).add(venue)
 
+            print(f"🧩 Insertando resumen por fecha para {len(data_por_fecha)} fechas")
+
             for fecha, horas_dict in data_por_fecha.items():
                 resumen = {hora: sorted(list(venues)) for hora, venues in horas_dict.items()}
                 cur.execute("""
@@ -77,10 +81,10 @@ def recalcular_resumen(deporte):
                     ON CONFLICT (fecha, deporte)
                     DO UPDATE SET resumen = EXCLUDED.resumen;
                 """, (fecha, deporte, json.dumps(resumen)))
+                print(f"  ✅ {deporte} - {fecha}: {len(resumen)} bloques de hora guardados")
 
-# 🚀 Main
 if __name__ == "__main__":
     for deporte in ["tennis", "golf", "futsal"]:
-        print(f"Actualizando resumen para: {deporte}")
+        print(f"\n🏁 Actualizando resumen para: {deporte}")
         recalcular_resumen(deporte)
-    print("Resúmenes actualizados para todos los deportes.")
+    print("\n✅ Resúmenes actualizados para todos los deportes.")
