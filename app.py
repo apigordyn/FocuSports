@@ -3,6 +3,7 @@ from fastapi import FastAPI, HTTPException, Query
 from sqlalchemy import create_engine, MetaData, text
 from datetime import datetime, timedelta
 import json
+from fastapi.responses import JSONResponse
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 engine = create_engine(DATABASE_URL)
@@ -253,27 +254,42 @@ def resumen_disponibilidad(
     deporte: str = Query(..., description="Deporte: tennis, golf o futsal"),
     fecha: str = Query(..., description="Fecha en formato YYYYMMDD")
 ):
-    deporte = deporte.lower()
-    if deporte not in ["tennis", "golf", "futsal"]:
-        raise HTTPException(status_code=400, detail="Deporte inválido")
+    try:
+        print(f"➡️ Recibido request para deporte: {deporte}, fecha: {fecha}")
+        deporte = deporte.lower()
 
-    with engine.connect() as conn:
-        result = conn.execute(
-            text("SELECT resumen FROM disponibilidad_resumen WHERE deporte = :deporte AND fecha = :fecha"),
-            {"deporte": deporte, "fecha": fecha}
-        )
-        row = result.fetchone()
+        if deporte not in ["tennis", "golf", "futsal"]:
+            print("❌ Deporte inválido")
+            raise HTTPException(status_code=400, detail="Deporte inválido")
 
-    if not row:
+        with engine.connect() as conn:
+            query = text("""
+                SELECT resumen 
+                FROM disponibilidad_resumen 
+                WHERE deporte = :deporte AND fecha = :fecha
+            """)
+            print("🧩 Ejecutando query...")
+            result = conn.execute(query, {"deporte": deporte, "fecha": fecha})
+            row = result.fetchone()
+            print(f"📦 Resultado de la query: {row}")
+
+        if not row:
+            print("ℹ️ No se encontró resumen para esos parámetros.")
+            return {
+                "deporte": deporte,
+                "fecha": fecha,
+                "horarios": {}
+            }
+
+        resumen = row[0]  # Ya es dict
+        print(f"✅ Resumen cargado exitosamente: {type(resumen)}")
+
         return {
             "deporte": deporte,
             "fecha": fecha,
-            "horarios": {}
+            "horarios": resumen
         }
 
-    resumen = row[0]
-    return {
-        "deporte": deporte,
-        "fecha": fecha,
-        "horarios": resumen
-    }
+    except Exception as e:
+        print(f"🔥 ERROR en /resumen_disponibilidad: {repr(e)}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
