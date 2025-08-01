@@ -24,12 +24,12 @@ VENUES = [
     "meadowbank-park-tc"
 ]
 
-# 🔌 Conexión a Postgres
+# 1. Conexión a Postgres
 def get_conn():
     DATABASE_URL = os.getenv("DATABASE_URL")
     return psycopg2.connect(DATABASE_URL)
 
-# 🗂 Crear tabla si no existe
+# 2. Crear tabla si no existe
 def crear_tabla_postgres():
     conn = get_conn()
     cur = conn.cursor()
@@ -58,7 +58,7 @@ def borrar_registros_viejos():
     cur.close()
     conn.close()
 
-# 🎾 Scraper de horarios disponibles
+# 3. Scraper
 async def extraer_disponibilidad(venue, fecha="20250528"):
     url = f"https://www.tennisvenues.com.au/booking/{venue}?date={fecha}"
     base = "https://www.tennisvenues.com.au"
@@ -96,15 +96,18 @@ async def extraer_disponibilidad(venue, fecha="20250528"):
 
     df = pd.DataFrame(resultados).drop_duplicates()
 
-    # Calcular duración máxima consecutiva
+    # Calcular duración máxima consecutiva desde cada hora
     if not df.empty:
         df['hora_dt'] = pd.to_datetime(df['hora'].str.strip().str.upper(), format='%I:%M%p')
         df['hora_min'] = df['hora_dt'].dt.hour * 60 + df['hora_dt'].dt.minute
         df = df.sort_values(['venue', 'fecha', 'cancha', 'hora_min'])
 
+        duraciones = []
+
         for (venue_g, fecha_g, cancha_g), group in df.groupby(['venue', 'fecha', 'cancha']):
             horas = sorted(group['hora_min'].tolist())
             durs = [30] * len(horas)
+
             for i in range(len(horas)):
                 actual = horas[i]
                 dur = 30
@@ -113,13 +116,15 @@ async def extraer_disponibilidad(venue, fecha="20250528"):
                     dur += 30
                     actual += 30
                     j += 1
-                df.loc[group.index, 'duracion_max_min'] = durs
+                durs[i] = dur
+
+            df.loc[group.index, 'duracion_max_min'] = durs
 
         df.drop(columns=['hora_dt', 'hora_min'], inplace=True)
 
     return df
 
-# 💾 Guardar en Postgres
+# 4. Guardado en Postgres (Bulk)
 def guardar_df_postgres(df):
     if df.empty:
         return
@@ -140,7 +145,7 @@ def guardar_df_postgres(df):
             )
     conn.close()
 
-# ⚙️ Scraping concurrente
+# 5. Scraping concurrente
 async def scrapear_concurrente(venues, fechas, max_concurrent=4):
     from asyncio import Semaphore, create_task, gather
 
@@ -165,90 +170,11 @@ async def scrapear_concurrente(venues, fechas, max_concurrent=4):
     ]
     await gather(*tareas)
 
-# 🧱 Crear tabla de resumen si no existe
-def crear_tabla_resumen_si_no_existe():
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS disponibilidad_resumen (
-            fecha TEXT,
-            deporte TEXT,
-            resumen JSONB,
-            PRIMARY KEY (fecha, deporte)
-        );
-    """)
-    conn.commit()
-    cur.close()
-    conn.close()
-
-# ⏱️ Normalizar hora a formato redondeado
-def normalizar_hora(hora_str):
-    s = hora_str.replace('.', '').replace('AM', ' AM').replace('PM', ' PM').strip().upper()
-    for fmt in ["%I:%M %p", "%H:%M"]:
-        try:
-            dt = datetime.datetime.strptime(s, fmt)
-            break
-        except:
-            continue
-    minute = dt.minute
-    if minute < 15:
-        dt = dt.replace(minute=0)
-    elif minute < 45:
-        dt = dt.replace(minute=30)
-    else:
-        dt = dt.replace(minute=0)
-        dt = dt.replace(hour=(dt.hour + 1) % 24)
-    return dt.strftime("%I:%M %p")
-
-# 🔄 Actualizar resumen SIN sobrescribir (con control de concurrencia)
-def actualizar_cache_resumen_tennis():
-    crear_tabla_resumen_si_no_existe()
-    conn = get_conn()
-
-    # Cargar data parcial de este scraper
-    with conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT fecha, hora, venue FROM horarios;")
-            rows = cur.fetchall()
-
-            # Agrupar por fecha y hora
-            parcial_dict = {}
-            for fecha, hora, venue in rows:
-                hora_norm = normalizar_hora(hora)
-                if fecha not in parcial_dict:
-                    parcial_dict[fecha] = {}
-                parcial_dict[fecha].setdefault(hora_norm, set()).add(venue)
-
-            # Merge concurrente seguro
-            for fecha, horas_nuevas in parcial_dict.items():
-                cur.execute("""
-                    SELECT resumen FROM disponibilidad_resumen
-                    WHERE fecha = %s AND deporte = 'tennis'
-                    FOR UPDATE
-                """, (fecha,))
-                row = cur.fetchone()
-                if row:
-                    resumen_actual = json.loads(row[0])
-                else:
-                    resumen_actual = {}
-
-                for hora, nuevos_venues in horas_nuevas.items():
-                    existentes = set(resumen_actual.get(hora, []))
-                    resumen_actual[hora] = sorted(list(existentes.union(nuevos_venues)))
-
-                cur.execute("""
-                    INSERT INTO disponibilidad_resumen (fecha, deporte, resumen)
-                    VALUES (%s, %s, %s)
-                    ON CONFLICT (fecha, deporte)
-                    DO UPDATE SET resumen = EXCLUDED.resumen
-                """, (fecha, 'tennis', json.dumps(resumen_actual)))
-
-# 🚀 Main
+# 6. Main
 if __name__ == "__main__":
     hoy = datetime.date.today()
     fechas = [(hoy + datetime.timedelta(days=i)).strftime("%Y%m%d") for i in range(28)]
     start = time.time()
     asyncio.run(scrapear_concurrente(VENUES, fechas, max_concurrent=1))
-    actualizar_cache_resumen_tennis()
     end = time.time()
     print(f"\nTiempo total: {end - start:.2f} segundos")
