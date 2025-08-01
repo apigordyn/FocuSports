@@ -1,240 +1,86 @@
 import os
-from fastapi import FastAPI, HTTPException, Query
-from sqlalchemy import create_engine, MetaData, text
-from datetime import datetime, timedelta
-import psycopg2
 import json
+import datetime
+import psycopg2
+from psycopg2.extras import execute_values
 
-# Conexión DB
-DATABASE_URL = os.environ["DATABASE_URL"]
-engine = create_engine(DATABASE_URL)
-metadata = MetaData()
-metadata.reflect(bind=engine)
+# 🔧 Conexión a Postgres
+def get_conn():
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    return psycopg2.connect(DATABASE_URL)
 
-horarios = metadata.tables.get("horarios")
-golf_horarios = metadata.tables.get("golf_horarios")
-futsal_horarios = metadata.tables.get("futsal_horarios")
-disponibilidad_resumen = metadata.tables.get("disponibilidad_resumen")
-
-app = FastAPI()
-
-@app.get("/debug_tables")
-def debug_tables():
-    try:
-        metadata.reflect(bind=engine)
-        table_names = list(metadata.tables.keys())
-        return {"tables": table_names}
-    except Exception as e:
-        return {"error": str(e)}
-
-@app.get("/debug_db")
-def debug_db():
-    conn = psycopg2.connect(DATABASE_URL)
+# 📄 Crear tabla resumen si no existe
+def crear_tabla_resumen_si_no_existe():
+    conn = get_conn()
     cur = conn.cursor()
-    cur.execute("SELECT current_database(), inet_server_addr(), inet_server_port();")
-    result = cur.fetchone()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS disponibilidad_resumen (
+            fecha TEXT,
+            deporte TEXT,
+            resumen JSONB,
+            PRIMARY KEY (fecha, deporte)
+        );
+    """)
+    conn.commit()
     cur.close()
     conn.close()
-    return {"db_info": result}
 
-def formatear_hora_estandar(hora_str):
-    s = hora_str.replace('.', '').replace('AM', ' AM').replace('PM', ' PM').strip().upper()
-    formatos = ["%H:%M", "%I:%M %p", "%I:%M%p"]
-    dt = None
-    for fmt in formatos:
-        try:
-            dt = datetime.strptime(s, fmt)
-            break
-        except:
-            continue
-    if dt is None:
-        return hora_str
-    return dt.strftime("%I:%M %p")
+# 🕒 Normalizar hora al bloque más cercano
+def normalizar_hora(hora_str):
+    try:
+        hora_str = hora_str.replace('.', '').replace('AM', ' AM').replace('PM', ' PM').strip().upper()
+        for fmt in ["%I:%M %p", "%H:%M"]:
+            try:
+                dt = datetime.datetime.strptime(hora_str, fmt)
+                break
+            except ValueError:
+                continue
+        else:
+            return None
 
-def redondear_a_media_hora(hora_str):
-    s = hora_str.replace('.', '').replace('AM', ' AM').replace('PM', ' PM').strip().upper()
-    formatos = ["%H:%M", "%I:%M %p", "%I:%M%p"]
-    dt = None
-    for fmt in formatos:
-        try:
-            dt = datetime.strptime(s, fmt)
-            break
-        except:
-            continue
-    if dt is None:
-        return hora_str
-    minute = dt.minute
-    if minute < 15:
-        rounded_minute = 0
-    elif minute < 45:
-        rounded_minute = 30
-    else:
-        dt += timedelta(hours=1)
-        rounded_minute = 0
-    dt = dt.replace(minute=rounded_minute, second=0)
-    return dt.strftime("%I:%M %p")
+        minute = dt.minute
+        if minute < 15:
+            dt = dt.replace(minute=0)
+        elif minute < 45:
+            dt = dt.replace(minute=30)
+        else:
+            dt = dt.replace(minute=0)
+            dt = dt.replace(hour=(dt.hour + 1) % 24)
+        return dt.strftime("%I:%M %p")
+    except Exception:
+        return None
 
-@app.get("/disponibilidad_tennis")
-def disponibilidad_tennis(
-    fecha: str,
-    venue: str = None,
-    hora: str = None,
-    hora_redondeada: str = None,
-    min_duracion: int = None
-):
-    if horarios is None:
-        raise HTTPException(status_code=500, detail="Tabla 'horarios' no existe en la base")
-    with engine.connect() as conn:
-        query = horarios.select().where(horarios.c.fecha == fecha)
-        if venue:
-            query = query.where(horarios.c.venue == venue)
-        if hora:
-            query = query.where(horarios.c.hora == hora)
-        if min_duracion:
-            query = query.where(horarios.c.duracion_max_min >= min_duracion)
-        result = conn.execute(query)
-        rows = [dict(row._mapping) for row in result]
-        for row in rows:
-            row["hora"] = formatear_hora_estandar(row["hora"])
-            row["hora_redondeada"] = redondear_a_media_hora(row["hora"])
-        if hora_redondeada:
-            hora_redondeada_norm = redondear_a_media_hora(hora_redondeada)
-            rows = [row for row in rows if row["hora_redondeada"] == hora_redondeada_norm]
-    return rows
-
-@app.get("/disponibilidad_golf")
-def disponibilidad_golf(
-    fecha: str,
-    venue: str = None,
-    hora: str = None,
-    hoyos: int = None,
-    hora_redondeada: str = None,
-    lugares: int = None
-):
-    if golf_horarios is None:
-        raise HTTPException(status_code=500, detail="Tabla 'golf_horarios' no existe en la base")
-    with engine.connect() as conn:
-        query = golf_horarios.select().where(golf_horarios.c.fecha == fecha)
-        if venue:
-            query = query.where(golf_horarios.c.venue == venue)
-        if hora:
-            query = query.where(golf_horarios.c.hora == hora)
-        if hoyos:
-            query = query.where(golf_horarios.c.hoyos == hoyos)
-        if lugares:
-            query = query.where(golf_horarios.c.lugares == lugares)
-        result = conn.execute(query)
-        rows = [dict(row._mapping) for row in result]
-        for row in rows:
-            row["hora"] = formatear_hora_estandar(row["hora"])
-            row["hora_redondeada"] = redondear_a_media_hora(row["hora"])
-        if hora_redondeada:
-            hora_redondeada_norm = redondear_a_media_hora(hora_redondeada)
-            rows = [row for row in rows if row["hora_redondeada"] == hora_redondeada_norm]
-    return rows
-
-@app.get("/disponibilidad_futsal")
-def disponibilidad_futsal(
-    fecha: str,
-    venue: str = None,
-    hora: str = None,
-    hora_redondeada: str = None,
-    court: str = None,
-    minutos: int = None
-):
-    if futsal_horarios is None:
-        raise HTTPException(status_code=500, detail="Tabla 'futsal_horarios' no existe en la base")
-    with engine.connect() as conn:
-        query = futsal_horarios.select().where(futsal_horarios.c.fecha == fecha)
-        if venue:
-            query = query.where(futsal_horarios.c.venue == venue)
-        if court:
-            query = query.where(futsal_horarios.c.court == court)
-        if hora:
-            query = query.where(futsal_horarios.c.hora == hora)
-        if minutos:
-            query = query.where(futsal_horarios.c.minutos == minutos)
-        result = conn.execute(query)
-        rows = [dict(row._mapping) for row in result]
-        for row in rows:
-            row["hora"] = formatear_hora_estandar(row["hora"])
-            row["hora_redondeada"] = redondear_a_media_hora(row["hora"])
-        if hora_redondeada:
-            hora_redondeada_norm = redondear_a_media_hora(hora_redondeada)
-            rows = [row for row in rows if row["hora_redondeada"] == hora_redondeada_norm]
-    return rows
-
-@app.get("/disponibilidad_general")
-def disponibilidad_general(
-    fecha: str,
-    hora: str = None,
-    hora_redondeada: str = None,
-    deporte: str = Query(None, regex="^(tennis|golf|futsal)?$"),
-    venue: str = None,
-    court: str = None,
-    minutos: int = None,
-    hoyos: int = None,
-    lugares: int = None,
-    min_duracion: int = None
-):
-    hora_redondeada_val = redondear_a_media_hora(hora_redondeada or hora) if hora_redondeada or hora else None
-    venues_set = set()
-
-    with engine.connect() as conn:
-        if (deporte is None) or (deporte == "tennis"):
-            tennis_query = horarios.select().where(horarios.c.fecha == fecha)
-            if venue:
-                tennis_query = tennis_query.where(horarios.c.venue == venue)
-            if hora:
-                tennis_query = tennis_query.where(horarios.c.hora == hora)
-            if min_duracion:
-                tennis_query = tennis_query.where(horarios.c.duracion_max_min >= min_duracion)
-            tennis_rows = [dict(row._mapping) for row in conn.execute(tennis_query)]
-            for row in tennis_rows:
-                row["hora"] = formatear_hora_estandar(row["hora"])
-                row["hora_redondeada"] = redondear_a_media_hora(row["hora"])
-                if hora_redondeada_val:
-                    if row["hora_redondeada"] == hora_redondeada_val:
-                        venues_set.add(row["venue"])
-                else:
-                    venues_set.add(row["venue"])
-
-        # Nota: golf y futsal no se incluyen aquí por simplicidad
-
-    status = "Available" if venues_set else "NonAvailable"
-    return {
-        "status": status,
-        "venues_count": len(venues_set),
-        "venues": sorted(list(venues_set))
-    }
-
-@app.get("/resumen_disponibilidad")
-def resumen_disponibilidad(
-    deporte: str = Query(..., description="Deporte: tennis, golf o futsal")
-):
-    deporte = deporte.lower()
-    if deporte not in ["tennis", "golf", "futsal"]:
-        raise HTTPException(status_code=400, detail="Deporte inválido")
-
+# 📊 Recalcular resumen para un deporte
+def recalcular_resumen(deporte):
+    crear_tabla_resumen_si_no_existe()
     conn = get_conn()
+
     with conn:
         with conn.cursor() as cur:
-            cur.execute("""
-                SELECT fecha, resumen FROM disponibilidad_resumen
-                WHERE deporte = %s
-                ORDER BY fecha
-            """, (deporte,))
+            cur.execute("SELECT fecha, hora, venue FROM horarios WHERE venue ILIKE %s;", (f"%{deporte}%",))
             rows = cur.fetchall()
 
-    disponibilidad = []
-    for fecha, resumen_json in rows:
-        resumen = json.loads(resumen_json)
-        disponibilidad.append({
-            "fecha": fecha,
-            "horarios": resumen
-        })
+            data_por_fecha = {}
+            for fecha, hora, venue in rows:
+                hora_norm = normalizar_hora(hora)
+                if hora_norm is None:
+                    continue
+                if fecha not in data_por_fecha:
+                    data_por_fecha[fecha] = {}
+                data_por_fecha[fecha].setdefault(hora_norm, set()).add(venue)
 
-    return {
-        "deporte": deporte,
-        "disponibilidad": disponibilidad
-    }
+            for fecha, horas_dict in data_por_fecha.items():
+                resumen = {hora: sorted(list(venues)) for hora, venues in horas_dict.items()}
+                cur.execute("""
+                    INSERT INTO disponibilidad_resumen (fecha, deporte, resumen)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (fecha, deporte)
+                    DO UPDATE SET resumen = EXCLUDED.resumen;
+                """, (fecha, deporte, json.dumps(resumen)))
+
+# 🚀 Main
+if __name__ == "__main__":
+    for deporte in ["tennis", "golf", "futsal"]:
+        print(f"Actualizando resumen para: {deporte}")
+        recalcular_resumen(deporte)
+    print("Resúmenes actualizados para todos los deportes.")
