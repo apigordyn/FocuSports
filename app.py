@@ -208,19 +208,33 @@ def disponibilidad_general(
         "venues": sorted(list(venues_set))
     }
 
-# 🚀 NUEVO ENDPOINT DE CACHE (tennis solamente)
-@app.get("/disponibilidad_resumen")
-def disponibilidad_resumen(
-    fecha: str,
-    deporte: str = Query(..., regex="^(tennis)$")
+@app.get("/resumen_disponibilidad")
+def resumen_disponibilidad(
+    deporte: str = Query(..., description="Deporte: tennis, golf o futsal")
 ):
-    if disponibilidad_resumen is None:
-        raise HTTPException(status_code=500, detail="Tabla 'disponibilidad_resumen' no existe en la base")
-    with engine.connect() as conn:
-        result = conn.execute(
-            text("SELECT resumen FROM disponibilidad_resumen WHERE fecha = :f AND deporte = :d"),
-            {"f": fecha, "d": deporte}
-        ).fetchone()
-        if not result:
-            raise HTTPException(status_code=404, detail="No hay datos cacheados")
-        return json.loads(result[0]) if isinstance(result[0], str) else result[0]
+    deporte = deporte.lower()
+    if deporte not in ["tennis", "golf", "futsal"]:
+        raise HTTPException(status_code=400, detail="Deporte inválido")
+
+    conn = get_conn()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT fecha, resumen FROM disponibilidad_resumen
+                WHERE deporte = %s
+                ORDER BY fecha
+            """, (deporte,))
+            rows = cur.fetchall()
+
+    disponibilidad = []
+    for fecha, resumen_json in rows:
+        resumen = json.loads(resumen_json)
+        disponibilidad.append({
+            "fecha": fecha,
+            "horarios": resumen
+        })
+
+    return {
+        "deporte": deporte,
+        "disponibilidad": disponibilidad
+    }
