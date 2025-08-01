@@ -41,33 +41,34 @@ def get_conn():
     return psycopg2.connect(DATABASE_URL)
 
 def formatear_hora_estandar(hora_str):
-    s = hora_str.strip().replace('.', '').lower()
-    if "am" in s or "pm" in s:
-        s = s.replace("am", " AM").replace("pm", " PM")
-    formatos = ["%I:%M %p", "%I:%M%p", "%H:%M"]
+    s = hora_str.strip().lower().replace('.', '')
+    
+    # Asegurar que tenga espacio antes de am/pm
+    if s.endswith("am") or s.endswith("pm"):
+        s = s[:-2] + " " + s[-2:]
+
+    formatos = ["%I:%M %p", "%I:%M%p", "%I %p", "%H:%M"]
+
     for fmt in formatos:
         try:
             dt = datetime.strptime(s, fmt)
-            return dt.strftime("%I:%M %p")
-        except:
+            return dt.strftime("%I:%M %p")  # salida tipo "10:00 AM"
+        except Exception:
             continue
+
     print(f"⚠️ Hora inválida encontrada: {hora_str}")
-    return hora_str
+    return None  # retorna None si falla
 
 def redondear_a_media_hora(hora_str):
-    s = hora_str.strip().replace('.', '').lower()
-    if "am" in s or "pm" in s:
-        s = s.replace("am", " AM").replace("pm", " PM")
-    formatos = ["%I:%M %p", "%I:%M%p", "%H:%M"]
-    for fmt in formatos:
-        try:
-            dt = datetime.strptime(s, fmt)
-            break
-        except:
-            continue
-    else:
-        print(f"⚠️ Hora inválida para redondear: {hora_str}")
-        return hora_str
+    hora_fmt = formatear_hora_estandar(hora_str)
+    if hora_fmt is None:
+        print(f"⚠️ No se pudo formatear la hora: {hora_str}")
+        return None
+    try:
+        dt = datetime.strptime(hora_fmt, "%I:%M %p")
+    except:
+        print(f"⚠️ Falla en parsear redondeo: {hora_fmt}")
+        return None
     minute = dt.minute
     if minute < 15:
         dt = dt.replace(minute=0)
