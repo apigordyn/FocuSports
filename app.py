@@ -210,7 +210,8 @@ def disponibilidad_general(
 
 @app.get("/resumen_disponibilidad")
 def resumen_disponibilidad(
-    deporte: str = Query(..., description="Deporte: tennis, golf o futsal")
+    deporte: str = Query(..., description="Deporte: tennis, golf o futsal"),
+    fecha: str = Query(..., description="Fecha en formato YYYYMMDD")
 ):
     deporte = deporte.lower()
     if deporte not in ["tennis", "golf", "futsal"]:
@@ -220,21 +221,21 @@ def resumen_disponibilidad(
     with conn:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT fecha, resumen FROM disponibilidad_resumen
-                WHERE deporte = %s
-                ORDER BY fecha
-            """, (deporte,))
-            rows = cur.fetchall()
+                SELECT resumen FROM disponibilidad_resumen
+                WHERE deporte = %s AND fecha = %s
+            """, (deporte, fecha))
+            row = cur.fetchone()
 
-    disponibilidad = []
-    for fecha, resumen_json in rows:
-        resumen = json.loads(resumen_json)
-        disponibilidad.append({
+    if not row:
+        return {
+            "deporte": deporte,
             "fecha": fecha,
-            "horarios": resumen
-        })
+            "horarios": {}
+        }
 
+    resumen = json.loads(row[0])
     return {
         "deporte": deporte,
-        "disponibilidad": disponibilidad
+        "fecha": fecha,
+        "horarios": resumen
     }
