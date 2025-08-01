@@ -257,14 +257,12 @@ def resumen_disponibilidad(
     if deporte not in ["tennis", "golf", "futsal"]:
         raise HTTPException(status_code=400, detail="Deporte inválido")
 
-    conn = get_conn()
-    with conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT resumen FROM disponibilidad_resumen
-                WHERE deporte = %s AND fecha = %s
-            """, (deporte, fecha))
-            row = cur.fetchone()
+    with engine.connect() as conn:
+        result = conn.execute(
+            text("SELECT resumen FROM disponibilidad_resumen WHERE deporte = :deporte AND fecha = :fecha"),
+            {"deporte": deporte, "fecha": fecha}
+        )
+        row = result.fetchone()
 
     if not row:
         return {
