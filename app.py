@@ -2,25 +2,22 @@ import os
 from fastapi import FastAPI, HTTPException, Query
 from sqlalchemy import create_engine, MetaData, text
 from datetime import datetime, timedelta
-import psycopg2
 import json
 
-# Conexión DB
 DATABASE_URL = os.environ["DATABASE_URL"]
 engine = create_engine(DATABASE_URL)
 metadata = MetaData()
 metadata.reflect(bind=engine)
-
 horarios = metadata.tables.get("horarios")
 golf_horarios = metadata.tables.get("golf_horarios")
 futsal_horarios = metadata.tables.get("futsal_horarios")
-disponibilidad_resumen = metadata.tables.get("disponibilidad_resumen")
 
 app = FastAPI()
 
 @app.get("/debug_tables")
 def debug_tables():
     try:
+        metadata = MetaData()
         metadata.reflect(bind=engine)
         table_names = list(metadata.tables.keys())
         return {"tables": table_names}
@@ -29,7 +26,7 @@ def debug_tables():
 
 @app.get("/debug_db")
 def debug_db():
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
     cur = conn.cursor()
     cur.execute("SELECT current_database(), inet_server_addr(), inet_server_port();")
     result = cur.fetchone()
@@ -45,13 +42,14 @@ def formatear_hora_estandar(hora_str):
         try:
             dt = datetime.strptime(s, fmt)
             break
-        except:
+        except Exception:
             continue
     if dt is None:
         return hora_str
     return dt.strftime("%I:%M %p")
 
 def redondear_a_media_hora(hora_str):
+    # Siempre usa la función formatear_hora_estandar para entrada
     s = hora_str.replace('.', '').replace('AM', ' AM').replace('PM', ' PM').strip().upper()
     formatos = ["%H:%M", "%I:%M %p", "%I:%M%p"]
     dt = None
@@ -59,7 +57,7 @@ def redondear_a_media_hora(hora_str):
         try:
             dt = datetime.strptime(s, fmt)
             break
-        except:
+        except Exception:
             continue
     if dt is None:
         return hora_str
@@ -80,7 +78,7 @@ def disponibilidad_tennis(
     venue: str = None,
     hora: str = None,
     hora_redondeada: str = None,
-    min_duracion: int = None
+    min_duracion: int = None  # Nuevo parámetro
 ):
     if horarios is None:
         raise HTTPException(status_code=500, detail="Tabla 'horarios' no existe en la base")
@@ -175,9 +173,13 @@ def disponibilidad_general(
     minutos: int = None,
     hoyos: int = None,
     lugares: int = None,
-    min_duracion: int = None
+    min_duracion: int = None  # Nuevo parámetro
 ):
-    hora_redondeada_val = redondear_a_media_hora(hora_redondeada or hora) if hora_redondeada or hora else None
+    hora_redondeada_val = None
+    if hora_redondeada:
+        hora_redondeada_val = redondear_a_media_hora(hora_redondeada)
+    elif hora:
+        hora_redondeada_val = redondear_a_media_hora(hora)
     venues_set = set()
 
     with engine.connect() as conn:
@@ -199,7 +201,45 @@ def disponibilidad_general(
                 else:
                     venues_set.add(row["venue"])
 
-        # Nota: golf y futsal no se incluyen aquí por simplicidad
+        if (deporte is None) or (deporte == "golf"):
+            golf_query = golf_horarios.select().where(golf_horarios.c.fecha == fecha)
+            if venue:
+                golf_query = golf_query.where(golf_horarios.c.venue == venue)
+            if hora:
+                golf_query = golf_query.where(golf_horarios.c.hora == hora)
+            if hoyos:
+                golf_query = golf_query.where(golf_horarios.c.hoyos == hoyos)
+            if lugares:
+                golf_query = golf_query.where(golf_horarios.c.lugares >= lugares)
+            golf_rows = [dict(row._mapping) for row in conn.execute(golf_query)]
+            for row in golf_rows:
+                row["hora"] = formatear_hora_estandar(row["hora"])
+                row["hora_redondeada"] = redondear_a_media_hora(row["hora"])
+                if hora_redondeada_val:
+                    if row["hora_redondeada"] == hora_redondeada_val:
+                        venues_set.add(row["venue"])
+                else:
+                    venues_set.add(row["venue"])
+
+        if (deporte is None) or (deporte == "futsal"):
+            futsal_query = futsal_horarios.select().where(futsal_horarios.c.fecha == fecha)
+            if venue:
+                futsal_query = futsal_query.where(futsal_horarios.c.venue == venue)
+            if court:
+                futsal_query = futsal_query.where(futsal_horarios.c.court == court)
+            if hora:
+                futsal_query = futsal_query.where(futsal_horarios.c.hora == hora)
+            if minutos:
+                futsal_query = futsal_query.where(futsal_horarios.c.minutos == minutos)
+            futsal_rows = [dict(row._mapping) for row in conn.execute(futsal_query)]
+            for row in futsal_rows:
+                row["hora"] = formatear_hora_estandar(row["hora"])
+                row["hora_redondeada"] = redondear_a_media_hora(row["hora"])
+                if hora_redondeada_val:
+                    if row["hora_redondeada"] == hora_redondeada_val:
+                        venues_set.add(row["venue"])
+                else:
+                    venues_set.add(row["venue"])
 
     status = "Available" if venues_set else "NonAvailable"
     return {
