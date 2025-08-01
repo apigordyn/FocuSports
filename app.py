@@ -56,38 +56,33 @@ def recalcular_resumen(deporte):
     crear_tabla_resumen_si_no_existe()
     conn = get_conn()
 
+    tabla = "horarios" if deporte == "tennis" else f"{deporte}_horarios"
+
     with conn:
         with conn.cursor() as cur:
-            if deporte == "tennis":
-                print("📥 Seleccionando datos desde horarios...")
-                cur.execute("SELECT fecha, hora, venue FROM horarios WHERE venue ILIKE %s;", (f"%",))
-            else:
-                print(f"📥 Seleccionando datos desde {deporte}_horarios...")
-                cur.execute(f"SELECT fecha, hora, venue FROM {deporte}_horarios;")
+            print(f"📥 Seleccionando datos desde {tabla}...")
+            cur.execute(f"SELECT fecha, hora, venue FROM {tabla};")
             rows = cur.fetchall()
             print(f"✅ {len(rows)} filas recuperadas para {deporte}")
 
             data_por_fecha = {}
+
             for fecha_raw, hora, venue in rows:
-                # 🎯 Normalización robusta de fecha para tennis
-                if deporte == "tennis":
-                    if isinstance(fecha_raw, datetime.date):
-                        fecha = fecha_raw.strftime("%Y%m%d")
-                    elif isinstance(fecha_raw, str):
-                        for fmt in ["%Y-%m-%d", "%d-%m-%Y", "%Y/%m/%d", "%d/%m/%Y"]:
-                            try:
-                                fecha = datetime.datetime.strptime(fecha_raw, fmt).strftime("%Y%m%d")
-                                break
-                            except:
-                                continue
-                        else:
-                            print(f"❌ Fecha inválida encontrada: {fecha_raw}")
-                            continue
-                    else:
-                        print(f"❌ Tipo de fecha no soportado: {fecha_raw}")
-                        continue
+                # Manejo robusto de fechas
+                fecha = None
+                if isinstance(fecha_raw, str) and len(fecha_raw) == 8 and fecha_raw.isdigit():
+                    fecha = fecha_raw
                 else:
-                    fecha = fecha_raw  # Golf/futsal ya están bien
+                    for fmt in ["%Y-%m-%d", "%d-%m-%Y", "%Y/%m/%d", "%d/%m/%Y"]:
+                        try:
+                            fecha = datetime.datetime.strptime(str(fecha_raw), fmt).strftime("%Y%m%d")
+                            break
+                        except:
+                            continue
+
+                if not fecha:
+                    print(f"❌ Fecha inválida encontrada: {fecha_raw}")
+                    continue
 
                 hora_norm = normalizar_hora(hora)
                 if hora_norm is None:
@@ -98,8 +93,7 @@ def recalcular_resumen(deporte):
                 data_por_fecha[fecha].setdefault(hora_norm, set()).add(venue)
 
             print(f"🧩 Insertando resumen por fecha para {len(data_por_fecha)} fechas")
-
-            for fecha, horas_dict in sorted(data_por_fecha.items()):
+            for fecha, horas_dict in data_por_fecha.items():
                 resumen = {hora: sorted(list(venues)) for hora, venues in horas_dict.items()}
                 cur.execute("""
                     INSERT INTO disponibilidad_resumen (fecha, deporte, resumen)
