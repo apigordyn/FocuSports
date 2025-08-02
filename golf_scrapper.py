@@ -165,10 +165,9 @@ def extract_available_slots(url: str) -> List[Tuple[str, int]]:
     print(f"❌ Falló al scrapear {url} tras múltiples intentos.")
     return []
 
-def next_n_full_weeks(n: int = 4) -> List[date]:
+def next_n_days(n: int = 28) -> List[date]:
     today = date.today()
-    monday = today - timedelta(days=today.weekday())
-    return [monday + timedelta(days=i) for i in range(n * 7)]
+    return [today + timedelta(days=i) for i in range(n)]
 
 def main():
     course_path = Path(__file__).parent / "venues" / "golf_venues.json"
@@ -181,7 +180,7 @@ def main():
     borrar_registros_viejos()
 
     results = []
-    for dia in next_n_full_weeks(4):
+    for dia in next_n_days(28):  # 👈 SOLO fechas futuras
         date_iso = dia.isoformat()
         fecha_fmt = dia.strftime("%Y%m%d")
         for club, data in COURSES.items():
