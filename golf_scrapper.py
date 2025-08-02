@@ -1,4 +1,4 @@
-import json, os, sys, requests
+import json, os, requests
 from pathlib import Path
 from datetime import datetime, date, timedelta
 from typing import List, Tuple
@@ -12,11 +12,12 @@ import warnings
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from fake_useragent import UserAgent, FakeUserAgentError
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 warnings.filterwarnings("ignore")
 print(f"⛳ tee_watcher.py started at {datetime.now().isoformat()}")
 
-HEADERS = {"User-Agent": "tee-watcher/1.0"}  # Solo fallback
+# --- Configuración global ---
 WEBSHARE_API_KEY = "ep51no531qi922dm4acixkdpz9glvzk6jnln2fw4"
 WEBSHARE_PROXY_LIST_URL = "https://proxy.webshare.io/api/v2/proxy/list/?mode=direct&page_size=250"
 
@@ -38,6 +39,7 @@ ACCEPT_LANGUAGES = [
     "en-US,en;q=0.5", "es-ES,es;q=0.8", "fr-FR,fr;q=0.7,en-US;q=0.3"
 ]
 
+# --- Funciones auxiliares ---
 def get_conn():
     return psycopg2.connect(os.getenv("DATABASE_URL"))
 
@@ -129,8 +131,7 @@ def get_random_headers():
         "Upgrade-Insecure-Requests": "1"
     }
 
-def extract_available_slots(url: str) -> List[Tuple[str, int]]:
-    proxy_list = fetch_proxies_from_webshare()
+def extract_available_slots(url: str, proxy_list: List[str]) -> List[Tuple[str, int]]:
     if not proxy_list:
         print("❌ No se pudo obtener proxies.")
         return []
@@ -138,13 +139,11 @@ def extract_available_slots(url: str) -> List[Tuple[str, int]]:
     for attempt in range(1, 4):
         proxies = get_random_proxy(proxy_list)
         headers = get_random_headers()
-        time.sleep(random.uniform(1, 4))
-
+        time.sleep(random.uniform(1, 2))
         try:
             response = requests.get(url, headers=headers, proxies=proxies, timeout=10)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "html.parser")
-
             slots = []
             for row in soup.select("div.row-time"):
                 h3 = row.find("h3")
@@ -158,7 +157,6 @@ def extract_available_slots(url: str) -> List[Tuple[str, int]]:
                 if free:
                     slots.append((t_std.strftime("%I:%M %p"), free))
             return sorted(slots, key=lambda x: datetime.strptime(x[0], "%I:%M %p"))
-
         except requests.RequestException as e:
             print(f"⚠️ Error intento {attempt}: {e}")
 
@@ -168,6 +166,31 @@ def extract_available_slots(url: str) -> List[Tuple[str, int]]:
 def next_n_days(n: int = 28) -> List[date]:
     today = date.today()
     return [today + timedelta(days=i) for i in range(n)]
+
+def scrape_venue(club, data, fechas, proxy_list):
+    domain = data["domain"]
+    booking_id = data["bookingResourceId"]
+    fee_groups = data["feeGroupIds"]
+    venue_results = []
+
+    for dia in fechas:
+        date_iso = dia.isoformat()
+        fecha_fmt = dia.strftime("%Y%m%d")
+        for hoyos_str, fee_id in fee_groups.items():
+            url = (
+                f"https://{domain}/guests/bookings/ViewPublicTimesheet.msp"
+                f"?bookingResourceId={booking_id}&selectedDate={date_iso}&feeGroupId={fee_id}"
+            )
+            for time_str, free in extract_available_slots(url, proxy_list):
+                venue_results.append({
+                    "venue": club,
+                    "fecha": fecha_fmt,
+                    "hora": time_str,
+                    "hoyos": int(hoyos_str),
+                    "lugares": free,
+                    "link": url
+                })
+    return venue_results
 
 def main():
     course_path = Path(__file__).parent / "venues" / "golf_venues.json"
@@ -179,28 +202,23 @@ def main():
     crear_tabla_golf_postgres()
     borrar_registros_viejos()
 
+    fechas = next_n_days(28)
+    proxy_list = fetch_proxies_from_webshare()
+    if not proxy_list:
+        print("🚫 Sin proxies disponibles. Saliendo...")
+        return
+
     results = []
-    for dia in next_n_days(28):  # 👈 SOLO fechas futuras
-        date_iso = dia.isoformat()
-        fecha_fmt = dia.strftime("%Y%m%d")
-        for club, data in COURSES.items():
-            domain = data["domain"]
-            booking_id = data["bookingResourceId"]
-            fee_groups = data["feeGroupIds"]
-            for hoyos_str, fee_id in fee_groups.items():
-                url = (
-                    f"https://{domain}/guests/bookings/ViewPublicTimesheet.msp"
-                    f"?bookingResourceId={booking_id}&selectedDate={date_iso}&feeGroupId={fee_id}"
-                )
-                for time_str, free in extract_available_slots(url):
-                    results.append({
-                        "venue": club,
-                        "fecha": fecha_fmt,
-                        "hora": time_str,
-                        "hoyos": int(hoyos_str),
-                        "lugares": free,
-                        "link": url
-                    })
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = [
+            executor.submit(scrape_venue, club, data, fechas, proxy_list)
+            for club, data in COURSES.items()
+        ]
+        for future in as_completed(futures):
+            try:
+                results.extend(future.result())
+            except Exception as e:
+                print(f"❌ Error al procesar un club: {e}")
 
     df = pd.DataFrame(results)
     print(df)
