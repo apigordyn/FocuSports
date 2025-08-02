@@ -62,7 +62,7 @@
   }
 },
 "Camden": {
-  "domain": "camdengolfclub.com.au",
+  "domain": "camden.miclub.com.au",
   "bookingResourceId": "3000000",
   "feeGroupIds": {
     "9": "4891454",
@@ -70,7 +70,7 @@
   }
 },
   "Woolooware": {
-  "domain": "wooloowaregolfclub.com.au",
+  "domain": "woolooware.miclub.com.au",
   "bookingResourceId": "3000000",
   "feeGroupIds": {
     "9": "3357674"
@@ -85,7 +85,7 @@
   }
 },
   "Bankstown": {
-  "domain": "kareela.miclub.com.au",
+  "domain": "bankstowngolf.com.au",
   "bookingResourceId": "3000000",
   "feeGroupIds": {
     "9": "1509794765",
