@@ -13,40 +13,14 @@ import json
 nest_asyncio.apply()
 
 VENUES = [
-    "oxford-fall-racquet-club",
-    "allambie-heights-tennis",
-    "narraweena-tennis-club",
-    "collaroy-tc",
-    "bareena-park-tc",
-    "eastern-suburbs-tennis-club",
-    "croker-park-tc",
-    "five-dock-tc",
-    "manly-lawn-tc",
-    "koobilya-st-tennis-court",
-    "wyatt-park-tc",
-    "forestville-park-tc",
-    "mosman-lawn-tc",
-    "southend-tc",
-    "sydney-boys-high-school",
-    "cooper-park-tc",
-    "haberfield-tc",
-    "eastside-tennis-centre",
-    "latham-park-tc",
-    "snape-park-tc",
-    "trinity-tennis-centre",
-    "bexley-tennis-courts",
-    "rockdale-tc",
-    "cammeray-tc",
-    "meadowbank-park-tc",
-    "primrose-park-tc",
-    "wheatleigh-st-tennis",
-    "etdta-abuklea-rd-marsfield", #Abuklea Road Marsfield
-    "willis-park-tennis", #The Willis Recreation and Sports Centre
-    "vince-barclay-coaching-academy", #Vince Barclay Tennis Academy
-    "hdta-caterson-tc", #Caterson Tennis Centre
-    "hdta-dural-tc", #Dural tennis Centre
-    "kwta", #Kim Warwick Tennis - Hornsby
-    "waitara-tc" #Kim Warwick Tennis - Waitara
+    "oxford-fall-racquet-club", "allambie-heights-tennis", "narraweena-tennis-club", "collaroy-tc",
+    "bareena-park-tc", "eastern-suburbs-tennis-club", "croker-park-tc", "five-dock-tc",
+    "manly-lawn-tc", "koobilya-st-tennis-court", "wyatt-park-tc", "forestville-park-tc",
+    "mosman-lawn-tc", "southend-tc", "sydney-boys-high-school", "cooper-park-tc", "haberfield-tc",
+    "eastside-tennis-centre", "latham-park-tc", "snape-park-tc", "trinity-tennis-centre",
+    "bexley-tennis-courts", "rockdale-tc", "cammeray-tc", "meadowbank-park-tc", "primrose-park-tc",
+    "wheatleigh-st-tennis", "etdta-abuklea-rd-marsfield", "willis-park-tennis", "vince-barclay-coaching-academy",
+    "hdta-caterson-tc", "hdta-dural-tc", "kwta", "waitara-tc"
 ]
 
 # 1. Conexión a Postgres
@@ -170,7 +144,7 @@ def guardar_df_postgres(df):
             )
     conn.close()
 
-# 5. Scraping concurrente: procesamos los 24 venues, pero limitamos a 12 concurrentes
+# 5. Scraping concurrente: procesamos los 34 venues y fechas, pero limitamos a 12 concurrentes en total
 async def scrapear_concurrente(venues, fechas, max_concurrent=12):
     from asyncio import Semaphore, create_task, gather
 
@@ -180,31 +154,30 @@ async def scrapear_concurrente(venues, fechas, max_concurrent=12):
     # Limitar el número de tareas concurrentes (12 tareas en total)
     sem = Semaphore(max_concurrent)
 
-    async def scrapear_venue(venue):
-        # Procesar las fechas en serie dentro del venue
-        for fecha in fechas:
-            async with sem:  # Esto asegura que solo 12 tareas estén corriendo en paralelo
-                t0 = time.time()
-                print(f"[INICIO] {venue} - {fecha} - {t0:.2f}")
-                df = await extraer_disponibilidad(venue, fecha)
-                guardar_df_postgres(df)
-                t1 = time.time()
-                print(f"[FIN]    {venue} - {fecha} - {t1:.2f} (Duración: {t1-t0:.2f}s)")
-                await asyncio.sleep(4)
+    async def scrapear_venue_fecha(venue, fecha):
+        async with sem:  # Esto asegura que solo 12 tareas estén corriendo en paralelo
+            t0 = time.time()
+            print(f"[INICIO] {venue} - {fecha} - {t0:.2f}")
+            df = await extraer_disponibilidad(venue, fecha)
+            guardar_df_postgres(df)
+            t1 = time.time()
+            print(f"[FIN]    {venue} - {fecha} - {t1:.2f} (Duración: {t1-t0:.2f}s)")
+            await asyncio.sleep(4)
 
-    # Crear todas las tareas para los 24 venues
+    # Crear todas las tareas para los 34 venues y sus fechas, y ejecutarlas en paralelo
     tareas = [
-        create_task(scrapear_venue(venue))  # Ejecutar cada `venue` en paralelo
+        create_task(scrapear_venue_fecha(venue, fecha))  # Ejecutar `venue` y `fecha` en paralelo
         for venue in venues
+        for fecha in fechas
     ]
-    
+
     # Ejecutar todas las tareas, limitando a 12 tareas concurrentes a la vez
     await gather(*tareas)
 
 # 6. Main
 if __name__ == "__main__":
     hoy = datetime.date.today()
-    fechas = [(hoy + datetime.timedelta(days=i)).strftime("%Y%m%d") for i in range(28)]
+    fechas = [(hoy + datetime.timedelta(days=i)).strftime("%Y%m%d") for i in range(21)]
     start = time.time()
     asyncio.run(scrapear_concurrente(VENUES, fechas, max_concurrent=12))  # 12 tareas en paralelo
     end = time.time()
